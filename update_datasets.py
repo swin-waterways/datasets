@@ -15,7 +15,7 @@ parser.add_argument("outfile", default = "datasets.csv", nargs = "?", help = "Ou
 parser.add_argument("-df", "--datasets-file", default = "datasets.json", help = "JSON file with list of datasets") # Allow passing in datasets file location, with a default location
 parser.add_argument("-hf", "--headers-file", default = "headers.json", help = "JSON file with list of default URL headers") # Allow passing in default URL headers file location, with a default location
 parser.add_argument("-t", "--tasks", action = "append", choices = ["mkdirs", "download", "merge", "output"], help = "List of tasks to run") # Allow passing in list of tasks to run, just one or none at all
-args = parser.parse_args()
+args = parser.parse_args("")
 
 # Read list of datasets from file
 datasets = json.load(open(args.datasets_file, "r"))
@@ -24,7 +24,7 @@ headers = json.load(open(args.headers_file, "r"))
 
 #########################################
 # Create directories if they do not exist
-def create_directories(datasets):
+def create(datasets):
     print("Creating directories...")
 
     # Loop through datasets
@@ -48,7 +48,7 @@ async def download_url(session, url, filename):
         }
         return response
 
-async def download_datasets(datasets, headers):
+async def download(datasets, headers):
     print("Downloading datasets...")
 
     # Set up aiohttp session
@@ -80,7 +80,7 @@ async def download_datasets(datasets, headers):
 
 ################
 # Merge datasets
-def merge_datasets(datasets):
+def merge(datasets):
     print("Merging datasets...")
 
     dfs, locations = [], [] # Setup lists of datasets and locations
@@ -111,7 +111,7 @@ def merge_datasets(datasets):
 
 #################
 # Output datasets
-def output_datasets(merged_df, outfile):
+def output(merged_df, outfile):
     print("Writing merged data...")
 
     # Write the dataframes to the output file
@@ -121,18 +121,20 @@ def output_datasets(merged_df, outfile):
 
 ###############
 # Run functions
-# Populate tasks argument if no value was given
-if (args.tasks == None):
-    args.tasks = ["mkdirs", "download", "merge", "output"]
+# Check if running as a script
+if __name__ == "__main__":
+    # Populate tasks argument if no value was given
+    if (args.tasks == None):
+        args.tasks = ["mkdirs", "download", "merge", "output"]
 
-# Check if argument for task was given before running
-if ("mkdirs" in args.tasks):
-    create_directories(datasets)
-if ("download" in args.tasks):
-    asyncio.run(download_datasets(datasets, headers)) # Run download datasets function asynchronously
-# Merge needs to be run for a dataset to be outputted
-if ("merge" in args.tasks or "output" in args.tasks):
-    merged_df = merge_datasets(datasets)
+    # Check if argument for task was given before running
+    if ("mkdirs" in args.tasks):
+        create(datasets)
+    if ("download" in args.tasks):
+        asyncio.run(download(datasets, headers)) # Run download datasets function asynchronously
+    # Merge needs to be run for a dataset to be outputted
+    if ("merge" in args.tasks or "output" in args.tasks):
+        merged_df = merge(datasets)
 
-    if ("output" in args.tasks):
-        output_datasets(merged_df, args.outfile)
+        if ("output" in args.tasks):
+            output(merged_df, args.outfile)
