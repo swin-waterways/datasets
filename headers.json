@@ -1,0 +1,18 @@
+{
+  "http://www.bom.gov.au/waterdata/services": {
+    "service": "kisters",
+    "type": "queryServices",
+    "request": "getTimeseriesValues",
+    "datasource": "0",
+    "format": "csv",
+    "from": "1951-06-01T00:00:00.000+10:00",
+    "to": "2024-04-20T00:00:00.000+10:00",
+    "returnfields": "Timestamp,Value,Quality Code,Interpolation Type",
+    "language": "en",
+    "timezone": "individual",
+    "csvdiv": ",",
+    "md_returnfields": "station_longname,station_no,station_latitude,station_longitude,parametertype_name,ts_name,ts_unitname,custom_attributes",
+    "custattr_returnfields": "DATA_OWNER_NAME",
+    "metadata": "true"
+  }
+}
