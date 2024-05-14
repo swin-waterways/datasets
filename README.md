@@ -10,7 +10,9 @@ It can also merge datasets and output the merged datasets to a CSV file (by defa
 ### Requirements
 - Python 3.9 or later
 - aiohttp library (`pip install aiohttp`)
+- matplotlib library (`pip install matplotlib`)
 - pandas library (`pip install pandas`)
+- pybomwater library (`pip install pybomwater`)
 
 ## Folder structure
 The current folder structure for datasets is as follows:

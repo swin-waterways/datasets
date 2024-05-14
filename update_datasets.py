@@ -5,8 +5,10 @@
 # This script downloads the latest versions of datasets from the datasets list and saves it in a consistent directory structure
 
 # Imports
+from datetime import datetime
 import aiohttp, asyncio, argparse, json, os, re, urllib.request
 import pandas as pd
+import pybomwater.bom_water
 
 ###################
 # Program arguments
@@ -16,7 +18,13 @@ parser.add_argument("output_file", default = "output/datasets.csv", nargs = "?",
 parser.add_argument("-df", "--datasets-file", default = "datasets.json", help = "JSON file with list of datasets") # Allow passing in datasets file location, with a default location
 parser.add_argument("-hf", "--headers-file", default = "headers.json", help = "JSON file with list of default URL headers") # Allow passing in default URL headers file location, with a default location
 parser.add_argument("-t", "--tasks", action = "append", choices = ["mkdirs", "download", "merge", "output-csv", "output-nmea"], help = "List of tasks to run") # Allow passing in list of tasks to run, just one or none at all
-args = parser.parse_args()
+
+# Check if running using an ipython kernel
+try:
+    get_ipython().__class__.__name__
+    args = parser.parse_args("")
+except NameError:
+    args = parser.parse_args()
 
 # Read list of datasets from file
 datasets = json.load(open(args.datasets_file, "r"))
@@ -85,6 +93,24 @@ async def download(datasets, headers):
                 file.write(r["text"])
                 file.close()
             print(f'\t{r["url"]} --> {r["filename"]}') # Print out info about saved file and URL
+    
+def download_bom():
+    bm = pybomwater.bom_water.BomWater()
+    
+    t_begin = "2016-01-01T00:00:00+10"
+    t_end = datetime.strftime(datetime.now(), "%Y-%m-%dT00:00:00+10")
+
+    features = []
+    features.append(bm.features.West_of_Dellapool)
+    features.append(bm.features.LK_VIC)
+
+    prop = bm.properties.Ground_Water_Level
+    proced = bm.procedures.Pat9_C_B_1
+    
+    bbox = [None, None]
+
+    return bm.get_observations(features, prop, proced, t_begin, t_end, bbox)
+    # results[0][bm.features.West_of_Dellapool]['Ground Water Level [m]'].plot.line()
 
 ################
 # Merge datasets
