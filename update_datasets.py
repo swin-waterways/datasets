@@ -11,29 +11,37 @@ import pandas as pd
 ###################
 # Program arguments
 parser = argparse.ArgumentParser(formatter_class = argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("outfile", default = "datasets.csv", nargs = "?", help = "Output CSV file with merged datasets")
+parser.add_argument("output_dir", default = "output", nargs = "?", help = "Directory to output NMEA-formatted CSV files to")
+parser.add_argument("output_file", default = "output/datasets.csv", nargs = "?", help = "Output CSV file with merged datasets")
 parser.add_argument("-df", "--datasets-file", default = "datasets.json", help = "JSON file with list of datasets") # Allow passing in datasets file location, with a default location
 parser.add_argument("-hf", "--headers-file", default = "headers.json", help = "JSON file with list of default URL headers") # Allow passing in default URL headers file location, with a default location
-parser.add_argument("-t", "--tasks", action = "append", choices = ["mkdirs", "download", "merge", "output"], help = "List of tasks to run") # Allow passing in list of tasks to run, just one or none at all
-args = parser.parse_args("")
+parser.add_argument("-t", "--tasks", action = "append", choices = ["mkdirs", "download", "merge", "output-csv", "output-nmea"], help = "List of tasks to run") # Allow passing in list of tasks to run, just one or none at all
+args = parser.parse_args()
 
 # Read list of datasets from file
 datasets = json.load(open(args.datasets_file, "r"))
+
+# Check if running as a script
 # Read list of default URL headers
 headers = json.load(open(args.headers_file, "r"))
 
 #########################################
 # Create directories if they do not exist
-def create(datasets):
+def create(datasets, output_dir):
     print("Creating directories...")
 
     # Loop through datasets
     for d in datasets:
         dir = d["filename"].rsplit("/", 1)[0] # Extract directory from filename
-        # Check that directory exists
+        # Check if directory exists
         if not os.path.isdir(dir):
             os.makedirs(dir) # Create the directory
-            print(f'\t{dir}') # Print out what directory was created
+            print(f'\t{dir}/') # Print out what directory was created
+
+    # Check if output directory exists
+    if not os.path.isdir(output_dir):
+        os.makedirs(output_dir) # Create the directory
+        print(f'\t{output_dir}/') # Print out what directory was created
 
 ###################
 # Download datasets
@@ -111,13 +119,22 @@ def merge(datasets):
 
 #################
 # Output datasets
-def output(merged_df, outfile):
-    print("Writing merged data...")
+# Output to a single CSV file
+def output_csv(merged_df, output_file):
+    print("Writing merged data to a CSV file...")
 
     # Write the dataframes to the output file
-    merged_df.to_csv(outfile)
+    merged_df.to_csv(output_file)
     # Print out output file location and confirmation
-    print(f'\tWritten to {outfile}')
+    print(f'\tWritten to {output_file}')
+
+# Output to NMEA-formatted CSV files
+def output_nmea(merged_df, output_dir):
+    print("Writing merged data to NMEA-formatted CSV files...")
+
+    ########################
+    ## TODO: FILL THIS IN ##
+    ########################
 
 ###############
 # Run functions
@@ -125,16 +142,18 @@ def output(merged_df, outfile):
 if __name__ == "__main__":
     # Populate tasks argument if no value was given
     if (args.tasks == None):
-        args.tasks = ["mkdirs", "download", "merge", "output"]
+        args.tasks = ["mkdirs", "download", "merge", "output-csv"]
 
     # Check if argument for task was given before running
     if ("mkdirs" in args.tasks):
-        create(datasets)
+        create(datasets, args.output_dir)
     if ("download" in args.tasks):
         asyncio.run(download(datasets, headers)) # Run download datasets function asynchronously
-    # Merge needs to be run for a dataset to be outputted
-    if ("merge" in args.tasks or "output" in args.tasks):
+    # Merge needs to be run for datasets to be outputted
+    if ("merge" in args.tasks or "output-csv" in args.tasks or "output-nmea" in args.tasks):
         merged_df = merge(datasets)
 
-        if ("output" in args.tasks):
-            output(merged_df, args.outfile)
+        if ("output-csv" in args.tasks):
+            output_csv(merged_df, args.output_file)
+        if ("output-nmea" in args.tasks):
+            output_nmea(merged_df, args.output_dir)
