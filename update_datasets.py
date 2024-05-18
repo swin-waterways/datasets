@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 #################
 # Update datasets
@@ -109,8 +109,8 @@ def download_bom():
     
     bbox = [None, None]
 
-    return bm.get_observations(features, prop, proced, t_begin, t_end, bbox)
-    # results[0][bm.features.West_of_Dellapool]['Ground Water Level [m]'].plot.line()
+    results = bm.get_observations(features, prop, proced, t_begin, t_end, bbox)
+    results[0][bm.features.West_of_Dellapool]['Ground Water Level [m]'].plot.line()
 
 ################
 # Merge datasets
