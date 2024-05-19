@@ -8,7 +8,8 @@ It reads from a list of datasets (by default `datasets.json`), and a list of def
 It can also merge datasets and output the merged datasets to a CSV file (by default `datasets.csv`).
 
 ### Requirements
-- Python 3.9 or later
+- Python 3.9 - 3.11
+  - Python 3.12 and later are not compatible with pybomwater
 - aiohttp library (`pip install aiohttp`)
 - matplotlib library (`pip install matplotlib`)
 - pandas library (`pip install pandas`)
@@ -18,6 +19,21 @@ It can also merge datasets and output the merged datasets to a CSV file (by defa
 The current folder structure for datasets is as follows:
 
 - **Source of data** (The org or company it came from)
-- **River** (What river the data is from)
+- **River** (The river the data is from)
 - **Location** (The specific location name)
 - ***Variable** (Optionally: The variable being recorded)*
+
+## Geofabric files
+In the `geofabric/` folder, there are shapefiles representing river basins and river catchment areas.  
+These shapefiles contain objects showing the geographic border of these areas, and are categorised as detailed below.
+
+There is also a QGIS Project file containing data from the BOM, that contains a layer showing all river basins and one showing all river catchment areas in Australia.
+
+### Requirements
+- [QGIS](https://qgis.org/en/site/forusers/download.html) can open the shapefiles and the QGIS project file.
+
+### Folder structure
+The current folder structure for geofabric files is as follows:
+
+- **Source of data** (The org or company it came from)
+- **River** (The river basin or catchment area the shapefile represents)

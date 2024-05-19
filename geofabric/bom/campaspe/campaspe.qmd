@@ -1,0 +1,64 @@
+<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis version="3.28.10-Firenze">
+  <identifier>RiverRegion</identifier>
+  <parentidentifier></parentidentifier>
+  <language>ENG</language>
+  <type>dataset</type>
+  <title>River Region - V3.3</title>
+  <abstract>The River Regions feature class is derived from aggregations of contracted catchments from the Geofabric Hydrology Reporting Catchments product. The River Regions were based on a specification developed by Bureau staff involved in water resources assessment in consultation with the Geofabric team and scientists from CSIRO and ANU. These boundaries were developed for use in regional scale reporting and hydrological modelling.
+
+The purpose of Geofabric Hydrology Reporting Regions is to provide a stable set of reporting boundaries at both the national and regional scale. It contains three levels of hydrological reporting regions. The first delineates national level drainage divisions, the second delineates regional level river regions across Australia and the third important Gauaging Station catchments. While the Geofabric Hydrology Reporting Regions were developed on the basis of Bureau requirements for water resource assessment, it is envisaged that these units can be more generally used as the standard for hydrological reporting at the national and regional scale and thus replace GA's River Basins (1997). The Reporting Region products exist as polygon feature classes and can be used for reporting hydrological phenomena within a given catchment or catchments. Alternately, the contracted catchment features can be accessed through a lookup table, namely AWRADDContractedCatchmentLookup or AWRARRContractedCatchmentLookup tables.</abstract>
+  <keywords vocabulary="Search keys">
+    <keyword>drainage divisions</keyword>
+    <keyword>catchments</keyword>
+    <keyword>drainage basins</keyword>
+    <keyword>rivers</keyword>
+    <keyword>reporting regions</keyword>
+    <keyword>Australia</keyword>
+  </keywords>
+  <keywords vocabulary="gmd:topicCategory">
+    <keyword>drainage divisions</keyword>
+    <keyword>catchments</keyword>
+    <keyword>drainage basins</keyword>
+    <keyword>rivers</keyword>
+    <keyword>reporting regions</keyword>
+  </keywords>
+  <contact>
+    <contactAddress>
+      <type></type>
+      <address></address>
+      <city></city>
+      <administrativearea></administrativearea>
+      <postalcode></postalcode>
+      <country></country>
+    </contactAddress>
+    <name>Environmental Prediction Services, Water Information</name>
+    <organization>Bureau of Meteorology, Community Services Group</organization>
+    <position></position>
+    <voice></voice>
+    <fax></fax>
+    <email>ahgf@bom.gov.au</email>
+    <role>Point of contact</role>
+  </contact>
+  <links/>
+  <fees></fees>
+  <constraints type="Limitations of use">Licenced for use under Creative Commons Attribution 4.0 International</constraints>
+  <rights>We request attribution as © Commonwealth of Australia (Bureau of Meteorology) 2022</rights>
+  <encoding></encoding>
+  <crs>
+    <spatialrefsys nativeFormat="Wkt">
+      <wkt>GEOGCRS["GDA94",DATUM["Geocentric Datum of Australia 1994",ELLIPSOID["GRS 1980",6378137,298.257222101,LENGTHUNIT["metre",1]]],PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]],CS[ellipsoidal,2],AXIS["geodetic latitude (Lat)",north,ORDER[1],ANGLEUNIT["degree",0.0174532925199433]],AXIS["geodetic longitude (Lon)",east,ORDER[2],ANGLEUNIT["degree",0.0174532925199433]],USAGE[SCOPE["Horizontal component of 3D system."],AREA["Australia including Lord Howe Island, Macquarie Island, Ashmore and Cartier Islands, Christmas Island, Cocos (Keeling) Islands, Norfolk Island. All onshore and offshore."],BBOX[-60.55,93.41,-8.47,173.34]],ID["EPSG",4283]]</wkt>
+      <proj4>+proj=longlat +ellps=GRS80 +no_defs</proj4>
+      <srsid>3415</srsid>
+      <srid>4283</srid>
+      <authid>EPSG:4283</authid>
+      <description>GDA94</description>
+      <projectionacronym>longlat</projectionacronym>
+      <ellipsoidacronym>EPSG:7019</ellipsoidacronym>
+      <geographicflag>true</geographicflag>
+    </spatialrefsys>
+  </crs>
+  <extent>
+    <spatial maxz="0" dimensions="2" crs="EPSG:4283" maxx="153.63902799999999615" minx="113.00013900000000433" minz="0" miny="-43.86152799999999985" maxy="-10.0154160000000001"/>
+  </extent>
+</qgis>
