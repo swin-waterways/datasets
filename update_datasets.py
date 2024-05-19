@@ -15,8 +15,8 @@ import pybomwater.bom_water
 parser = argparse.ArgumentParser(formatter_class = argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("output_dir", default = "output", nargs = "?", help = "Directory to output NMEA-formatted CSV files to")
 parser.add_argument("output_file", default = "output/datasets.csv", nargs = "?", help = "Output CSV file with merged datasets")
-parser.add_argument("-df", "--datasets-file", default = "datasets.json", help = "JSON file with list of datasets") # Allow passing in datasets file location, with a default location
-parser.add_argument("-hf", "--headers-file", default = "headers.json", help = "JSON file with list of default URL headers") # Allow passing in default URL headers file location, with a default location
+parser.add_argument("-df", "--datasets-file", default = "datasets/datasets.json", help = "JSON file with list of datasets") # Allow passing in datasets file location, with a default location
+parser.add_argument("-hf", "--headers-file", default = "datasets/headers.json", help = "JSON file with list of default URL headers") # Allow passing in default URL headers file location, with a default location
 parser.add_argument("-t", "--tasks", action = "append", choices = ["mkdirs", "download", "merge", "output-csv", "output-nmea"], help = "List of tasks to run") # Allow passing in list of tasks to run, just one or none at all
 
 # Check if running using an ipython kernel
@@ -64,7 +64,8 @@ async def download_url(session, url, filename):
         }
         return response
 
-async def download(datasets, headers):
+# Download datasets from URLs in datasets.json
+async def download_urls(datasets, headers):
     print("Downloading datasets...")
 
     # Set up aiohttp session
@@ -94,19 +95,38 @@ async def download(datasets, headers):
                 file.close()
             print(f'\t{r["url"]} --> {r["filename"]}') # Print out info about saved file and URL
     
+# Download BOM datasets with pybomwater
 def download_bom():
+    # Initialise pybomwater
     bm = pybomwater.bom_water.BomWater()
-    
-    t_begin = "2016-01-01T00:00:00+10"
+    # Set procedure and property to get
+    procedure = bm.procedures.Pat4_C_B_1_DailyMean
+    prop = bm.properties.Water_Course_Discharge
+
+    # Create rectangle boundary coordinates for Murray-Darling Basin
+    low_left_lat = -37.505032
+    low_left_long = 138.00
+    upper_right_lat = -24.00
+    upper_right_long = 154.00
+
+    lower_left_coords = f'{low_left_lat} {low_left_long}'
+    upper_right_coords = f'{upper_right_lat} {upper_right_long}'
+    coords = tuple((lower_left_coords, upper_right_coords))
+
+    # Find all features (data points) within that box
+    response = bm.xml_to_json(bm.request(bm.actions.GetFeatureOfInterest, None, prop, procedure, None, None, lower_left_coords, upper_right_coords).text)
+    # Create a feature collection
+    feature_list = bm.create_feature_list(response, None)
+    print(feature_list)
+   
+    # Set maximum begin and end time
+    t_begin = "2000-01-01T00:00:00+10"
     t_end = datetime.strftime(datetime.now(), "%Y-%m-%dT00:00:00+10")
 
     features = []
     features.append(bm.features.West_of_Dellapool)
     features.append(bm.features.LK_VIC)
 
-    prop = bm.properties.Ground_Water_Level
-    proced = bm.procedures.Pat9_C_B_1
-    
     bbox = [None, None]
 
     results = bm.get_observations(features, prop, proced, t_begin, t_end, bbox)
@@ -174,7 +194,7 @@ if __name__ == "__main__":
     if ("mkdirs" in args.tasks):
         create(datasets, args.output_dir)
     if ("download" in args.tasks):
-        asyncio.run(download(datasets, headers)) # Run download datasets function asynchronously
+        asyncio.run(download_urls(datasets, headers)) # Run download datasets function asynchronously
     # Merge needs to be run for datasets to be outputted
     if ("merge" in args.tasks or "output-csv" in args.tasks or "output-nmea" in args.tasks):
         merged_df = merge(datasets)
