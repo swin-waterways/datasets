@@ -15,6 +15,7 @@ import pybomwater.bom_water
 parser = argparse.ArgumentParser(formatter_class = argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("output_dir", default = "output", nargs = "?", help = "Directory to output NMEA-formatted CSV files to")
 parser.add_argument("output_file", default = "output/datasets.csv", nargs = "?", help = "Output CSV file with merged datasets")
+parser.add_argument("-bf", "--bom-config-file", default = "datasets/bom.json", help = "JSON file containing pybomwater configuration") # Allow passing in BOM config file location, with a default location
 parser.add_argument("-df", "--datasets-file", default = "datasets/datasets.json", help = "JSON file with list of datasets") # Allow passing in datasets file location, with a default location
 parser.add_argument("-hf", "--headers-file", default = "datasets/headers.json", help = "JSON file with list of default URL headers") # Allow passing in default URL headers file location, with a default location
 parser.add_argument("-t", "--tasks", action = "append", choices = ["mkdirs", "download", "merge", "output-csv", "output-nmea"], help = "List of tasks to run") # Allow passing in list of tasks to run, just one or none at all
@@ -26,10 +27,10 @@ try:
 except NameError:
     args = parser.parse_args()
 
+# Read pybomwater configuration file
+bom_config = json.load(open(args.bom_config_file, "r"))
 # Read list of datasets from file
 datasets = json.load(open(args.datasets_file, "r"))
-
-# Check if running as a script
 # Read list of default URL headers
 headers = json.load(open(args.headers_file, "r"))
 
@@ -112,25 +113,15 @@ def download_bom():
     lower_left_coords = f'{low_left_lat} {low_left_long}'
     upper_right_coords = f'{upper_right_lat} {upper_right_long}'
     coords = tuple((lower_left_coords, upper_right_coords))
-
-    # Find all features (data points) within that box
-    response = bm.xml_to_json(bm.request(bm.actions.GetFeatureOfInterest, None, prop, procedure, None, None, lower_left_coords, upper_right_coords).text)
-    # Create a feature collection
-    feature_list = bm.create_feature_list(response, None)
-    print(feature_list)
    
     # Set maximum begin and end time
     t_begin = "2000-01-01T00:00:00+10"
     t_end = datetime.strftime(datetime.now(), "%Y-%m-%dT00:00:00+10")
-
-    features = []
-    features.append(bm.features.West_of_Dellapool)
-    features.append(bm.features.LK_VIC)
-
-    bbox = [None, None]
-
-    results = bm.get_observations(features, prop, proced, t_begin, t_end, bbox)
-    results[0][bm.features.West_of_Dellapool]['Ground Water Level [m]'].plot.line()
+    
+    # Get all observations within an area provided by a shapefile
+    spatial_path = "geofabric/bom/mdb_buffer_1km.shp"
+    results = bm.get_spatially_filtered_observations(None, spatial_path, coords, prop, procedure, t_begin, t_end)
+    print(results)
 
 ################
 # Merge datasets
