@@ -18,7 +18,7 @@ parser.add_argument("output_file", default = "output/datasets.csv", nargs = "?",
 parser.add_argument("-bf", "--bom-config-file", default = "datasets/bom.json", help = "JSON file containing pybomwater configuration") # Allow passing in BOM config file location, with a default location
 parser.add_argument("-df", "--datasets-file", default = "datasets/datasets.json", help = "JSON file with list of datasets") # Allow passing in datasets file location, with a default location
 parser.add_argument("-hf", "--headers-file", default = "datasets/headers.json", help = "JSON file with list of default URL headers") # Allow passing in default URL headers file location, with a default location
-parser.add_argument("-t", "--tasks", action = "append", choices = ["mkdirs", "download", "merge", "output-csv", "output-nmea"], help = "List of tasks to run") # Allow passing in list of tasks to run, just one or none at all
+parser.add_argument("-t", "--tasks", action = "append", choices = ["download", "merge", "output-csv", "output-nmea"], help = "List of tasks to run") # Allow passing in list of tasks to run, just one or none at all
 
 # Check if running using an ipython kernel
 try:
@@ -179,12 +179,11 @@ def output_nmea(merged_df, output_dir):
 if __name__ == "__main__":
     # Populate tasks argument if no value was given
     if (args.tasks == None):
-        args.tasks = ["mkdirs", "download", "merge", "output-csv"]
+        args.tasks = ["download", "merge", "output-csv"]
 
     # Check if argument for task was given before running
-    if ("mkdirs" in args.tasks):
-        create(datasets, args.output_dir)
     if ("download" in args.tasks):
+        create(datasets, args.output_dir)
         asyncio.run(download_urls(datasets, headers)) # Run download datasets function asynchronously
     # Merge needs to be run for datasets to be outputted
     if ("merge" in args.tasks or "output-csv" in args.tasks or "output-nmea" in args.tasks):
