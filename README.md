@@ -8,12 +8,11 @@ It reads from a list of datasets (by default `datasets.json`), and a list of def
 It can also merge datasets and output the merged datasets to a CSV file (by default `datasets.csv`).
 
 ### Requirements
-- Python 3.9 - 3.11
-  - Python 3.12 and later are not compatible with pybomwater
+- Python 3.9 - 3.12
 - aiohttp library (`pip install aiohttp`)
 - matplotlib library (`pip install matplotlib`)
 - pandas library (`pip install pandas`)
-- pybomwater library (`pip install pybomwater`)
+- pybomwater library (`pip install git+https://github.com/csiro-hydroinformatics/pybomwater.git`)
 
 ## Folder structure
 The current folder structure for datasets is as follows:
