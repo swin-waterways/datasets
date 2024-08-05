@@ -31,5 +31,12 @@
       "ts_id": "263069010"
     },
     "filename": "bom/loddon/kerang/water_temperature.csv"
+  },
+  {
+    "url": "http://www.bom.gov.au/waterdata/services",
+    "headers": {
+      "ts_id": "285915010"
+    },
+    "filename": "bom/loddon/loddon_weir/water_course_discharge.csv"
   }
 ]
