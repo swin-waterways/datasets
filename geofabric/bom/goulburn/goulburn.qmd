@@ -1,5 +1,5 @@
 <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
-<qgis version="3.28.10-Firenze">
+<qgis version="3.34.4-Prizren">
   <identifier>RiverRegion</identifier>
   <parentidentifier></parentidentifier>
   <language>ENG</language>
@@ -41,6 +41,7 @@ The purpose of Geofabric Hydrology Reporting Regions is to provide a stable set 
     <role>Point of contact</role>
   </contact>
   <links/>
+  <dates/>
   <fees></fees>
   <constraints type="Limitations of use">Licenced for use under Creative Commons Attribution 4.0 International</constraints>
   <rights>We request attribution as © Commonwealth of Australia (Bureau of Meteorology) 2022</rights>
@@ -59,6 +60,6 @@ The purpose of Geofabric Hydrology Reporting Regions is to provide a stable set 
     </spatialrefsys>
   </crs>
   <extent>
-    <spatial miny="-43.86152799999999985" maxy="-10.0154160000000001" crs="EPSG:4283" maxx="153.63902799999999615" minz="0" dimensions="2" maxz="0" minx="113.00013900000000433"/>
+    <spatial maxy="-10.0154160000000001" dimensions="2" miny="-43.86152799999999985" minz="0" minx="113.00013900000000433" crs="EPSG:4283" maxx="153.63902799999999615" maxz="0"/>
   </extent>
 </qgis>
