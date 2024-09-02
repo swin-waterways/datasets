@@ -1,3 +1,4 @@
 output/** filter=lfs diff=lfs merge=lfs -text
 bom/** filter=lfs diff=lfs merge=lfs -text
 mdba/** filter=lfs diff=lfs merge=lfs -text
+wmis/** filter=lfs diff=lfs merge=lfs -text
