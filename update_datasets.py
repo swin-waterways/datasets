@@ -8,7 +8,7 @@
 from datetime import datetime
 import aiohttp, asyncio, argparse, json, os, re, urllib.request
 import pandas as pd
-import pybomwater.bom_water
+# import pybomwater.bom_water
 
 ###################
 # Program arguments
@@ -16,7 +16,8 @@ parser = argparse.ArgumentParser(formatter_class = argparse.ArgumentDefaultsHelp
 parser.add_argument("output_dir", default = "output", nargs = "?", help = "Directory to output NMEA-formatted CSV files to")
 parser.add_argument("output_file", default = "output/datasets.csv", nargs = "?", help = "Output CSV file with merged datasets")
 parser.add_argument("-bf", "--bom-config-file", default = "datasets/bom.json", help = "JSON file containing pybomwater configuration") # Allow passing in BOM config file location, with a default location
-parser.add_argument("-df", "--datasets-file", default = "datasets/datasets.json", help = "JSON file with list of datasets") # Allow passing in datasets file location, with a default location
+parser.add_argument("-dsf", "--datasets-file", default = "datasets/datasets.json", help = "JSON file with list of datasets") # Allow passing in datasets file location, with a default location
+parser.add_argument("-dwf", "--delwp-datasets-file", default = "datasets/delwp_datasets.json", help = "JSON file with list of DELWP datasets") # Allow passing in DELWP datasets file location, with a default location
 parser.add_argument("-hf", "--headers-file", default = "datasets/headers.json", help = "JSON file with list of default URL headers") # Allow passing in default URL headers file location, with a default location
 parser.add_argument("-t", "--tasks", action = "append", choices = ["download", "merge", "output-csv", "output-nmea"], help = "List of tasks to run") # Allow passing in list of tasks to run, just one or none at all
 
@@ -31,6 +32,8 @@ except NameError:
 bom_config = json.load(open(args.bom_config_file, "r"))
 # Read list of datasets from file
 datasets = json.load(open(args.datasets_file, "r"))
+# Read list of DELWP datasets from file
+delwp_datasets = json.load(open(args.delwp_datasets_file, "r"))
 # Read list of default URL headers
 headers = json.load(open(args.headers_file, "r"))
 
@@ -59,7 +62,7 @@ async def download_url(session, url, filename):
     async with session.get(url) as resp:
         # Construct response dictionary
         response = {
-            "url": url,
+            "filename": url,
             "text": await resp.text(), # Response text
             "filename": filename
         }
@@ -79,12 +82,12 @@ async def download_urls(datasets, headers):
             # Check if dataset URL has included headers
             if "headers" in d:
                 # Check if dataset URL has default headers
-                if d["url"] in headers:
-                    d["headers"].update(headers[d["url"]]) # Add default headers to included headers
+                if d["filename"] in headers:
+                    d["headers"].update(headers[d["filename"]]) # Add default headers to included headers
                 # Add headers onto end of URL
-                d["url"] = d["url"] + "?" + urllib.parse.urlencode(d["headers"])
+                d["filename"] = d["url"] + "?" + urllib.parse.urlencode(d["headers"])
             # Append download URL to async tasks list
-            tasks.append(asyncio.ensure_future(download_url(session, d["url"], d["filename"])))
+            tasks.append(asyncio.ensure_future(download_url(session, d["filename"], d["filename"])))
 
         # Download the files asynchronously
         responses = await asyncio.gather(*tasks)
@@ -94,37 +97,97 @@ async def download_urls(datasets, headers):
             with open(r["filename"], "w") as file:
                 file.write(r["text"])
                 file.close()
-            print(f'\t{r["url"]} --> {r["filename"]}') # Print out info about saved file and URL
+            print(f'\t{r["filename"]} --> {r["filename"]}') # Print out info about saved file and URL
     
-# Download BOM datasets with pybomwater
-def download_bom():
-    # Initialise pybomwater
-    bm = pybomwater.bom_water.BomWater()
-    # Set procedure and property to get
-    procedure = bm.procedures.Pat4_C_B_1_DailyMean
-    prop = bm.properties.Water_Course_Discharge
-
-    # Create rectangle boundary coordinates for Murray-Darling Basin
-    low_left_lat = -37.505032
-    low_left_long = 138.00
-    upper_right_lat = -24.00
-    upper_right_long = 154.00
-
-    lower_left_coords = f'{low_left_lat} {low_left_long}'
-    upper_right_coords = f'{upper_right_lat} {upper_right_long}'
-    coords = tuple((lower_left_coords, upper_right_coords))
-   
-    # Set maximum begin and end time
-    t_begin = "2000-01-01T00:00:00+10"
-    t_end = datetime.strftime(datetime.now(), "%Y-%m-%dT00:00:00+10")
-    
-    # Get all observations within an area provided by a shapefile
-    spatial_path = "geofabric/bom/mdb_buffer_1km.shp"
-    results = bm.get_spatially_filtered_observations(None, spatial_path, coords, prop, procedure, t_begin, t_end)
-    print(results)
+# # Download BOM datasets with pybomwater
+# def download_bom():
+#     # Initialise pybomwater
+#     bm = pybomwater.bom_water.BomWater()
+#     # Set procedure and property to get
+#     procedure = bm.procedures.Pat4_C_B_1_DailyMean
+#     prop = bm.properties.Water_Course_Discharge
+#
+#     # Create rectangle boundary coordinates for Murray-Darling Basin
+#     low_left_lat = -37.505032
+#     low_left_long = 138.00
+#     upper_right_lat = -24.00
+#     upper_right_long = 154.00
+#
+#     lower_left_coords = f'{low_left_lat} {low_left_long}'
+#     upper_right_coords = f'{upper_right_lat} {upper_right_long}'
+#     coords = tuple((lower_left_coords, upper_right_coords))
+#
+#     # Set maximum begin and end time
+#     t_begin = "2000-01-01T00:00:00+10"
+#     t_end = datetime.strftime(datetime.now(), "%Y-%m-%dT00:00:00+10")
+#
+#     # Get all observations within an area provided by a shapefile
+#     spatial_path = "geofabric/bom/mdb_buffer_1km.shp"
+#     results = bm.get_spatially_filtered_observations(None, spatial_path, coords, prop, procedure, t_begin, t_end)
+#     print(results)
 
 ################
 # Merge datasets
+#
+# Merge DELWP datasets
+def merge_delwp(delwp_datasets):
+    print("Merging DELWP datasets...")
+    # Read parameters from DELWP datasets file
+    params = delwp_datasets["parameters"]
+    # Output DataFrame
+    output_df = pd.DataFrame()
+
+    # Loop through each object in the DELWP datasets file
+    for basin in delwp_datasets["basins"]:
+        # Print basin name
+        print(f'{basin["basin_name"]} Basin')
+        # Create basin DataFrame with a Basin column
+        basin_df = pd.DataFrame()
+
+        # Read site metadata file for that basin
+        site_metadata = pd.read_csv(f'{basin["dirname"]}/{params["metadata_file"]}')
+
+        # Loop through each row (location in basin)
+        for index, location in site_metadata.iterrows():
+            # Create location DataFrame
+            location_df = pd.DataFrame()
+            # Get location directory location (lol)
+            location_dir = str(location["Site ID"]) + params["location_dir_ext"]
+
+            # Loop through file in location directory
+            for file in params["files"]:
+                filename = f'{basin["dirname"]}/{location_dir}/{location["Site ID"]}.{file["file_ext"]}'
+                # Check if the file exists first
+                if os.path.isfile(filename):
+                    # Read results from CSV (only use first two columns and replace the header names with the ones below)
+                    measurement_df = pd.read_csv(filename, header=0, names=["Date", file["measurement"]], usecols=[0,1])
+
+                    # Change Date column to DateTime data type
+                    measurement_df["Date"] = pd.to_datetime(measurement_df["Date"])
+
+                    # Insert basin, location, latitude and longitude columns
+                    measurement_df.insert(0, "Basin", basin["basin_name"])
+                    measurement_df.insert(1, "Location", location["Name"])
+                    measurement_df.insert(2, "Latitude", location["Latitude"])
+                    measurement_df.insert(3, "Longitude", location["Longitude"])
+
+                    # Merge location_df and measurement_df
+                    if location_df.empty:
+                        location_df = measurement_df
+                    else:
+                        # Merge location_df and measurement_df together on common columns
+                        location_df = pd.merge(location_df, measurement_df, on=["Basin", "Location", "Latitude", "Longitude", "Date"], how="outer")
+
+            # Print message about what was just merged
+            print(f'\t{location["Name"]}')
+            # Concatenate basin_df and location_df
+            basin_df = pd.concat([basin_df, location_df])
+        # Concatenate output_df and basin_df
+        output_df = pd.concat([output_df, basin_df])
+    # Return output_df
+    return output_df
+
+
 def merge(datasets):
     print("Merging datasets...")
 
@@ -134,18 +197,16 @@ def merge(datasets):
     for d in datasets:
         pd_args = {"filepath_or_buffer": d["filename"], "index_col": 0, "on_bad_lines": "skip"} # Setup pd args
         # Add additional args for MDBA datasets
-        if d["url"].startswith("https://riverdata.mdba.gov.au"):
+        if d["filename"].startswith("mdba"):
             pd_args.update({"header": 2, "skiprows": [3]}) # Remove most of the headers
         # Add additional args for BOM datasets
-        elif d["url"].startswith("http://www.bom.gov.au"):
+        elif d["filename"].startswith("bom"):
             pd_args.update({"header": 9}) # Remove most of the headers
 
         # Read CSV and append dataset to list of datasets
         dfs.append(pd.read_csv(**pd_args))
-        # Trim down filename to get location
-        location = re.sub("-", " ", re.sub("(\/\w+)*.csv$", "", re.sub("^(\w+\/){2}", "", d["filename"])))
-        # Clean up location string
-        location = re.sub("-", " ", location).title()
+        # Get location
+        location = d["location"]
         # Append location name to list of locations
         locations.append(location)
         # Print out info about location
@@ -187,7 +248,8 @@ if __name__ == "__main__":
         asyncio.run(download_urls(datasets, headers)) # Run download datasets function asynchronously
     # Merge needs to be run for datasets to be outputted
     if ("merge" in args.tasks or "output-csv" in args.tasks or "output-nmea" in args.tasks):
-        merged_df = merge(datasets)
+        merged_df = merge_delwp(delwp_datasets)
+        # merged_df = merge(datasets)
 
         if ("output-csv" in args.tasks):
             output_csv(merged_df, args.output_file)

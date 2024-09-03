@@ -1,22 +1,38 @@
-[
-	{
-		"basin_name": "Broken",
-		"dirname": "wmis/broken",
-		"metadata_file": "SW Metadata.csv"
+{
+	"parameters": {
+		"metadata_file": "SW Metadata.csv",
+		"location_dir_ext": ".PUBLISH",
+		"files": [
+			{
+				"measurement": "Rainfall",
+				"file_ext": "rainfall.Raw_Data.csv"
+			},
+			{
+				"measurement": "Flow",
+				"file_ext": "streamflow.Raw_Data.csv"
+			},
+			{
+				"measurement": "Height",
+				"file_ext": "streamwaterlevel.Raw_Data.csv"
+			}
+		]
 	},
-	{
-		"basin_name": "Campaspe",
-		"dirname": "wmis/campaspe",
-		"metadata_file": "SW Metadata.csv"
-	},
-	{
-		"basin_name": "Goulburn",
-		"dirname": "wmis/goulburn",
-		"metadata_file": "SW Metadata.csv"
-	},
-	{
-		"basin_name": "Loddon",
-		"dirname": "wmis/loddon",
-		"metadata_file": "SW Metadata.csv"
-	}
-]
+	"basins": [
+		{
+			"basin_name": "Broken",
+			"dirname": "wmis/broken"
+		},
+		{
+			"basin_name": "Campaspe",
+			"dirname": "wmis/campaspe"
+		},
+		{
+			"basin_name": "Goulburn",
+			"dirname": "wmis/goulburn"
+		},
+		{
+			"basin_name": "Loddon",
+			"dirname": "wmis/loddon"
+		}
+	]
+}
