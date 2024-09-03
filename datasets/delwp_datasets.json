@@ -1,0 +1,22 @@
+[
+	{
+		"basin_name": "Broken",
+		"dirname": "wmis/broken",
+		"metadata_file": "SW Metadata.csv"
+	},
+	{
+		"basin_name": "Campaspe",
+		"dirname": "wmis/campaspe",
+		"metadata_file": "SW Metadata.csv"
+	},
+	{
+		"basin_name": "Goulburn",
+		"dirname": "wmis/goulburn",
+		"metadata_file": "SW Metadata.csv"
+	},
+	{
+		"basin_name": "Loddon",
+		"dirname": "wmis/loddon",
+		"metadata_file": "SW Metadata.csv"
+	}
+]

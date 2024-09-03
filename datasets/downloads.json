@@ -1,0 +1,42 @@
+[
+  {
+    "url": "https://riverdata.mdba.gov.au/sites/default/files/liveriverdata/csv/406202c_historical.csv",
+    "filename": "mdba/campaspe/rochester.csv"
+  },
+  {
+    "url": "https://riverdata.mdba.gov.au/sites/default/files/liveriverdata/csv/405232c_historical.csv",
+    "filename": "mdba/goulburn/mccoy-bridge.csv"
+  },
+  {
+    "url": "https://riverdata.mdba.gov.au/sites/default/files/liveriverdata/csv/407202c_historical.csv",
+    "filename": "mdba/loddon/kerang.csv"
+  },
+  {
+    "url": "http://www.bom.gov.au/waterdata/services",
+    "headers": {
+      "ts_id": "285655010"
+    },
+    "filename": "bom/loddon/kerang/water_course_discharge.csv"
+  },
+  {
+    "url": "http://www.bom.gov.au/waterdata/services",
+    "headers": {
+      "ts_id": "263058010"
+    },
+    "filename": "bom/loddon/kerang/water_course_level.csv"
+  },
+  {
+    "url": "http://www.bom.gov.au/waterdata/services",
+    "headers": {
+      "ts_id": "263069010"
+    },
+    "filename": "bom/loddon/kerang/water_temperature.csv"
+  },
+  {
+    "url": "http://www.bom.gov.au/waterdata/services",
+    "headers": {
+      "ts_id": "285915010"
+    },
+    "filename": "bom/loddon/loddon_weir/water_course_discharge.csv"
+  }
+]
