@@ -1,0 +1,83 @@
+Quality,Text
+1,Unedited data
+2,Good quality data - minimal editing required. +/- 0mm-10mm Drift correction
+3,"Used only by TELEM Data, must not be archived"
+4,Good quality data. Edited by Hyadjust. Minimal editing required +/- 0mm-10mm drift correction.
+5,Drawdown affecting site due to hydraulic conditions (slope/increased velocity/density); can cause diff b/w gauge board and instr readings.
+6,Different rating table used when level is rising compared to falling.
+8,Pool reading only - no flowing water
+9,Site/bore dry
+10,Data transposed from recorder chart.
+11,Reviewed data without field adjustment (or correction)
+12,Unverified rainfall data awaiting annual rain gauge calibration
+13,Accurate derived data from multiple sources (level & flow)
+14,Unstable hydraulic conditions occuring due to high velocity.
+15,Minor editing. +/- 11mm-20mm drift correction
+16,Minor editing. Edited by Hyadjust. +/- 11mm-20mm drift correction
+17,Level reference set incorrectly
+18,Logger removed from bore for airlifting/bore development
+19,First measurement since MP change / bore refurbishment
+21,Low velocity acoustic record affected by wind or gate
+22,Changed conditions at site. Not representative of stream conditions.
+26,Daily gauge board readings
+30,Good measurement. Flow Trackers and M9 should be held for 40sec at each vertical reading across the cross section.
+31,Good Measurement commonly used QC for gaugings. Flow Trackers/M9 should be held for 40sec at each vertical reading across the cross section.
+32,"Fair measurement. Used where there is turbulent flow, Vegetation growth, inadequate verticles, or non uniform flow conditions."
+33,3 Point measurement. Applicable to narrow sections eg. Pipes or channels
+34,"Bucket measurement applicable to weirs, pipe outflow etc."
+35,Composite measurement. Segments taken from several gaugings.
+36,Measurement for sampling purposes. Rough estimate.
+37,Measurement estimated
+38,Quality or method unknown
+39,Catchment area defined (Catchment rating table only)/ Moving Boat Measurement
+40,Catchment area not defined (Catchment rating table only)
+42,Low velocity acoustic record affected by wind or gate opening
+43,Good manual GW measurement
+44,"GW - data from water corporations, consultants or government agencies"
+45,GW - data from Universities or CMAs
+46,GW - data from landholders
+47,GW - historic data from the GMS (validation unknown)
+50,Moderate editing +/- 21mm-30mm drift correction
+51,Single Point High Velocity Meas. M9 use only. Water Vel > 3m/s
+52,Moderate editing. Edited by Hyadjust. +/- 21mm-30mm drift correction.
+65,Other Authorities supplied data. Validation not supplied.
+76,"Interpolation between two points less than 24 hours apart, not a correlation."
+77,"Correlation with other station, same variable only."
+80,Accumulated (Rainfall or Flow totals only).
+82,Linear interpolation across gap in records. (<0.5 day)
+90,Salinity interpolation (Data Management section use only).
+96,Daily read records substituted for continuous record lost due to natural cause/vandalism.
+99,Sensor out of calibration (see comments)
+100,"Irregular data, use with caution. (+30mm drift / >15% of range of instrument)"
+101,Drawdown rating applied
+104,Records manually estimated.
+145,Rating Created via Modelling
+146,Interim rating table
+147,Rating based on measurements older than 20 years
+148,Theoretical rating table applied.
+149,Rating extrapolated 1.5 times the maximum flow gauged.
+150,Rating extrapolated above 1.5x maximum flow gauged.
+151,Data lost due to natural causes / vandalism (see additional quality info)
+152,Contractual issues affecting data collection or site/bore access.
+153,Data not recorded. Probe out of water/below instrument threshold.
+154,Data unreliable.  Acoustic sensor affected by wind.
+155,Data unreliable. Recording above instrument range.
+156,Drawdown - normal rating does not apply
+157,Unreliable Data (Bore Data)
+158,Unreliable Data - Awaiting correction from Field Validation
+160,Stage backed-up by downstream influence (see additional quality info) ?
+161,Poor quality data from debris effecting Sensor.
+165,Suspect or bad data supplied by other authority
+170,"Raw unedited data stored in archive, secondary/backup sensor (see additional quality info) ?"
+180,"Data not recorded, equipment malfunction."
+190,Data unavailable station discontinued.
+200,Data available but not digitised.
+235,Poor Measurement. Inadequate verticals or observations.Incomplete M9 measurement
+236,Suspect or Incomplete Measurement. Equipment suspect or gauging aborted.
+237,Surface velocity measurement only.
+238,Control leaking measurement. As noted on measurement or chart.
+239,Backed up flow measurement. Flow affected by backup.
+240,Not Coded Measurement. Not coded as per Hydsys system.
+241,For Melbourne Water Purposes (Temporary Code)
+250,Rating table suspended
+254,Rating table exceeded
