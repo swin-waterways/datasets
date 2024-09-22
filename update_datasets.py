@@ -14,12 +14,13 @@ import pandas as pd
 # Program arguments
 parser = argparse.ArgumentParser(formatter_class = argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("output_dir", default = "output", nargs = "?", help = "Directory to output NMEA-formatted CSV files to")
-parser.add_argument("output_file", default = "output/datasets.csv", nargs = "?", help = "Output CSV file with merged datasets")
+parser.add_argument("output_datasets_file", default = "output/datasets.csv", nargs = "?", help = "Output CSV file with merged datasets")
+parser.add_argument("output_metadata_file", default = "output/metadata.csv", nargs = "?", help = "Output CSV file with location metadata")
 parser.add_argument("-bf", "--bom-config-file", default = "datasets/bom.json", help = "JSON file containing pybomwater configuration") # Allow passing in BOM config file location, with a default location
 parser.add_argument("-dsf", "--datasets-file", default = "datasets/datasets.json", help = "JSON file with list of datasets") # Allow passing in datasets file location, with a default location
 parser.add_argument("-dwf", "--delwp-datasets-file", default = "datasets/delwp_datasets.json", help = "JSON file with list of DELWP datasets") # Allow passing in DELWP datasets file location, with a default location
 parser.add_argument("-hf", "--headers-file", default = "datasets/headers.json", help = "JSON file with list of default URL headers") # Allow passing in default URL headers file location, with a default location
-parser.add_argument("-t", "--tasks", action = "append", choices = ["download", "merge", "output-csv", "output-nmea"], help = "List of tasks to run") # Allow passing in list of tasks to run, just one or none at all
+parser.add_argument("-t", "--tasks", action = "append", choices = ["download", "merge", "output-csv", "output-json"], help = "List of tasks to run") # Allow passing in list of tasks to run, just one or none at all
 
 # Check if running using an ipython kernel
 try:
@@ -134,8 +135,9 @@ def merge_delwp(delwp_datasets):
     print("Merging DELWP datasets...")
     # Read parameters from DELWP datasets file
     params = delwp_datasets["parameters"]
-    # Output DataFrame
-    output_df = pd.DataFrame()
+    # Output DataFrames
+    datasets_df, metadata_df = pd.DataFrame(), pd.DataFrame()
+    index_inc = 0 # Metadata index incrementer
 
     # Loop through each object in the DELWP datasets file
     for basin in delwp_datasets["basins"]:
@@ -154,6 +156,10 @@ def merge_delwp(delwp_datasets):
             # Get location directory location (lol)
             location_dir = str(location["Site ID"]) + params["location_dir_ext"]
 
+            # Add new row to metadata DataFrame
+            metadata_df = pd.concat([metadata_df, pd.DataFrame({"Site ID": location["Site ID"], "Basin": basin["basin_name"], "Location": location["Name"], "Latitude": location["Latitude"], "Longitude": location["Longitude"]}, index=[index_inc])])
+            index_inc += 1
+
             # Loop through file in location directory
             for file in params["files"]:
                 filename = f'{basin["dirname"]}/{location_dir}/{location["Site ID"]}.{file["file_ext"]}'
@@ -161,31 +167,43 @@ def merge_delwp(delwp_datasets):
                 if os.path.isfile(filename):
                     # Read results from CSV (only use first two columns and replace the header names with the ones below)
                     measurement_df = pd.read_csv(filename, header=0, names=["Date", file["measurement"]], usecols=[0,1])
+                    # Floor date strings to the hour and change Date column to DateTime data type
+                    measurement_df["Date"] = pd.to_datetime(measurement_df["Date"].str.replace(":[0-9]{2}:[0-9]{2}$", '', regex=True))
 
-                    # Change Date column to DateTime data type
-                    measurement_df["Date"] = pd.to_datetime(measurement_df["Date"])
+                    # Do different actions to DF based on measurement
+                    match file["measurement"]:
+                        case "Rainfall":
+                            # Sum all rainfall values for each hour
+                            measurement_df = measurement_df.groupby("Date").sum()
+                        case "Flow" | "Height":
+                            # Use mean flow/height value for each hour
+                            measurement_df = measurement_df.groupby("Date").mean()
 
-                    # Insert basin, location, latitude and longitude columns
-                    measurement_df.insert(0, "Basin", basin["basin_name"])
-                    measurement_df.insert(1, "Location", location["Name"])
-                    measurement_df.insert(2, "Latitude", location["Latitude"])
-                    measurement_df.insert(3, "Longitude", location["Longitude"])
+                    # Insert site ID column
+                    measurement_df.insert(0, "Site ID", location["Site ID"])
 
                     # Merge location_df and measurement_df
                     if location_df.empty:
                         location_df = measurement_df
                     else:
                         # Merge location_df and measurement_df together on common columns
-                        location_df = pd.merge(location_df, measurement_df, on=["Basin", "Location", "Latitude", "Longitude", "Date"], how="outer")
-
-            # Print message about what was just merged
-            print(f'\t{location["Name"]}')
+                        location_df = pd.merge(location_df, measurement_df, on=["Site ID", "Date"], how="outer")
+            # Print message about what is being merged
+            print(f'\t{location["Name"]}', end='')
+            # Sort all rows in location_df by Date
+            try:
+                location_df.sort_values("Date")
+                print() # \n
+            except:
+                if location_df.empty:
+                    # DataFrame is empty
+                    print(f' \x1B[3m(No data for this location)\x1B[0m')
             # Concatenate basin_df and location_df
             basin_df = pd.concat([basin_df, location_df])
         # Concatenate output_df and basin_df
-        output_df = pd.concat([output_df, basin_df])
-    # Return output_df
-    return output_df
+        datasets_df = pd.concat([datasets_df, basin_df])
+    # Return output dfs
+    return datasets_df, metadata_df
 
 
 def merge(datasets):
@@ -226,9 +244,9 @@ def output_csv(merged_df, output_file):
     # Print out output file location and confirmation
     print(f'\tWritten to {output_file}')
 
-# Output to NMEA-formatted CSV files
-def output_nmea(merged_df, output_dir):
-    print("Writing merged data to NMEA-formatted CSV files...")
+# Output to formatted JSON files
+def output_json(merged_df, output_dir):
+    print("Writing merged data to JSON files...")
 
     ########################
     ## TODO: FILL THIS IN ##
@@ -248,10 +266,11 @@ if __name__ == "__main__":
         asyncio.run(download_urls(datasets, headers)) # Run download datasets function asynchronously
     # Merge needs to be run for datasets to be outputted
     if ("merge" in args.tasks or "output-csv" in args.tasks or "output-nmea" in args.tasks):
-        merged_df = merge_delwp(delwp_datasets)
+        datasets, metadata = merge_delwp(delwp_datasets)
         # merged_df = merge(datasets)
 
         if ("output-csv" in args.tasks):
-            output_csv(merged_df, args.output_file)
-        if ("output-nmea" in args.tasks):
-            output_nmea(merged_df, args.output_dir)
+            output_csv(datasets, args.output_datasets_file)
+            output_csv(metadata, args.output_metadata_file)
+        if ("output-json" in args.tasks):
+            output_json(datasets, args.output_dir)
