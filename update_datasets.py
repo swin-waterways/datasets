@@ -181,13 +181,15 @@ def merge_delwp(delwp_datasets):
 
                     # Insert site ID column
                     measurement_df.insert(0, "Site ID", location["Site ID"])
+                    # Insert flood column
+                    measurement_df.insert(1, "Flood", 0)
 
                     # Merge location_df and measurement_df
                     if location_df.empty:
                         location_df = measurement_df
                     else:
                         # Merge location_df and measurement_df together on common columns
-                        location_df = pd.merge(location_df, measurement_df, on=["Site ID", "Date"], how="outer")
+                        location_df = pd.merge(location_df, measurement_df, on=["Site ID", "Date", "Flood"], how="outer")
             # Print message about what is being merged
             print(f'\t{location["Name"]}', end='')
             # Sort all rows in location_df by Date
@@ -265,7 +267,7 @@ if __name__ == "__main__":
         create(datasets, args.output_dir)
         asyncio.run(download_urls(datasets, headers)) # Run download datasets function asynchronously
     # Merge needs to be run for datasets to be outputted
-    if ("merge" in args.tasks or "output-csv" in args.tasks or "output-nmea" in args.tasks):
+    if ("merge" in args.tasks or "output-csv" in args.tasks or "output-json" in args.tasks):
         datasets, metadata = merge_delwp(delwp_datasets)
         # merged_df = merge(datasets)
 
