@@ -248,6 +248,7 @@ def merge_delwp(delwp_datasets, split_level):
     if split_level == "none" and not args.metadata_only:
         # Append datasets_df to datasets output
         datasets.append({"name": "datasets", "value": datasets_df})
+    metadata_df.set_index("Basin", inplace=True)
     # Return output dfs
     return datasets, metadata_df
 
@@ -300,11 +301,12 @@ def output_csv_files(dfs, output_dir):
         output_csv(df["value"], f'{output_dir}/{df["name"]}.csv', quiet=True)
 
 # Output to one JSON file
-def output_json(df, output_file):
+def output_json(data, output_file):
     print("Writing merged data to a JSON file...")
 
-    # Write the df to the output file
-    df.to_json(output_file, orient="records")
+    # Convert the data to JSON and write it to the output file
+    with open(output_file, "w") as json_file:
+        json.dump(data, json_file)
     # Print out output file location and confirmation
     print(f'\tWritten to {output_file}')
 
@@ -331,6 +333,15 @@ if __name__ == "__main__":
                 output_csv_files(datasets, f'{output_args["output_dir"]}')
             output_csv(metadata, f'{output_args["output_dir"]}/{output_args["metadata_prefix"]}.csv')
         if "output-json" in args.tasks:
-            # Remove Basin and Location columns from metadata_df
-            metadata = metadata.drop(columns=["Basin", "Location"])
+            # Remove Location columns from metadata_df
+            metadata.drop(columns="Location", inplace=True)
+
+            # Split metadata_df by Basin column
+            grouped_metadata = metadata.groupby("Basin")
+            # Turn metadata df into list of dicts
+            metadata = []
+            for basin_name in grouped_metadata.groups:
+                basin_df = grouped_metadata.get_group(basin_name).reset_index(drop=True)
+                metadata.append({"Basin": basin_name, "Locations": basin_df.to_dict("records")})
+
             output_json(metadata, f'{output_args["output_dir"]}/{output_args["metadata_prefix"]}.json')
