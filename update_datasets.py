@@ -12,15 +12,15 @@ import pandas as pd
 
 ###################
 # Program arguments
-parser = argparse.ArgumentParser(formatter_class = argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("output_dir", default = "output", nargs = "?", help = "Directory to output NMEA-formatted CSV files to")
-parser.add_argument("output_datasets_file", default = "output/datasets.csv", nargs = "?", help = "Output CSV file with merged datasets")
-parser.add_argument("output_metadata_file", default = "output/metadata.csv", nargs = "?", help = "Output CSV file with location metadata")
-parser.add_argument("-bf", "--bom-config-file", default = "datasets/bom.json", help = "JSON file containing pybomwater configuration") # Allow passing in BOM config file location, with a default location
-parser.add_argument("-dsf", "--datasets-file", default = "datasets/datasets.json", help = "JSON file with list of datasets") # Allow passing in datasets file location, with a default location
-parser.add_argument("-dwf", "--delwp-datasets-file", default = "datasets/delwp_datasets.json", help = "JSON file with list of DELWP datasets") # Allow passing in DELWP datasets file location, with a default location
-parser.add_argument("-hf", "--headers-file", default = "datasets/headers.json", help = "JSON file with list of default URL headers") # Allow passing in default URL headers file location, with a default location
-parser.add_argument("-t", "--tasks", action = "append", choices = ["download", "merge", "output-csv", "output-json"], help = "List of tasks to run") # Allow passing in list of tasks to run, just one or none at all
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("-bf", "--bom-config-file", default="datasets/bom.json", help="JSON file containing pybomwater configuration")
+parser.add_argument("-dsf", "--datasets-file", default="datasets/datasets.json", help="JSON file with list of datasets")
+parser.add_argument("-dwf", "--delwp-datasets-file", default="datasets/delwp_datasets.json", help="JSON file with list of DELWP datasets")
+parser.add_argument("-hf", "--headers-file", default="datasets/headers.json", help="JSON file with list of default URL headers")
+parser.add_argument("-of", "--output-file", default="datasets/output.json", help="JSON file with list of output arguments")
+parser.add_argument("-s", "--split-level", default="none", choices=["none", "basin", "location", "measurement"], help="Where to split the data into multiple CSV files")
+parser.add_argument("--separate-time", action="store_true", help="Output time as a separate column from date")
+parser.add_argument("-t", "--tasks", action="append", choices=["download", "merge", "output-csv", "output-json"], help="List of tasks to run")
 
 # Check if running using an ipython kernel
 try:
@@ -37,6 +37,8 @@ datasets = json.load(open(args.datasets_file, "r"))
 delwp_datasets = json.load(open(args.delwp_datasets_file, "r"))
 # Read list of default URL headers
 headers = json.load(open(args.headers_file, "r"))
+# Read list of output arguments
+output_args = json.load(open(args.output_file, "r"))
 
 #########################################
 # Create directories if they do not exist
@@ -131,11 +133,12 @@ async def download_urls(datasets, headers):
 # Merge datasets
 #
 # Merge DELWP datasets
-def merge_delwp(delwp_datasets):
+def merge_delwp(delwp_datasets, split_level):
     print("Merging DELWP datasets...")
     # Read parameters from DELWP datasets file
     params = delwp_datasets["parameters"]
     # Output DataFrames
+    datasets = [] # Array for output datasets
     datasets_df, metadata_df = pd.DataFrame(), pd.DataFrame()
     index_inc = 0 # Metadata index incrementer
 
@@ -170,42 +173,74 @@ def merge_delwp(delwp_datasets):
                     # Floor date strings to the hour and change Date column to DateTime data type
                     measurement_df["Date"] = pd.to_datetime(measurement_df["Date"].str.replace(":[0-9]{2}:[0-9]{2}$", '', regex=True))
 
+                    group_cols = ["Date"]
+                    # Put time in a separate column if separate_time arg passed
+                    if args.separate_time:
+                        measurement_df["Time"] = measurement_df["Date"].dt.time
+                        measurement_df["Date"] = measurement_df["Date"].dt.date
+                        group_cols.append("Time")
+
                     # Do different actions to DF based on measurement
                     match file["measurement"]:
                         case "Rainfall":
                             # Sum all rainfall values for each hour
-                            measurement_df = measurement_df.groupby("Date").sum()
+                            measurement_df = measurement_df.groupby(group_cols).sum()
                         case "Flow" | "Height":
                             # Use mean flow/height value for each hour
-                            measurement_df = measurement_df.groupby("Date").mean()
+                            measurement_df = measurement_df.groupby(group_cols).mean()
 
                     # Insert site ID column
-                    measurement_df.insert(0, "Site ID", location["Site ID"])
+                    if split_level not in ["location", "measurement"]:
+                        measurement_df.insert(0, "Site ID", location["Site ID"])
                     # Insert flood column
                     measurement_df.insert(1, "Flood", 0)
 
-                    # Merge location_df and measurement_df
-                    if location_df.empty:
-                        location_df = measurement_df
-                    else:
-                        # Merge location_df and measurement_df together on common columns
-                        location_df = pd.merge(location_df, measurement_df, on=["Site ID", "Date", "Flood"], how="outer")
+                    if split_level in ["none", "basin", "location"]:
+                        # Merge location_df and measurement_df
+                        if location_df.empty:
+                            location_df = measurement_df
+                        else:
+                            # Merge location_df and measurement_df together on common columns
+                            common_cols = ["Site ID", "Date", "Flood"]
+                            # Site ID column will not be included if split level is location
+                            if split_level == "location":
+                                common_cols.remove("Site ID")
+                            # Add Time column if separate_time arg was passed
+                            if args.separate_time:
+                                common_cols.append("Time")
+
+                            location_df = pd.merge(location_df, measurement_df, on=common_cols, how="outer")
+                    elif split_level == "measurement":
+                        datasets.append({"name": f'{location["Site ID"]}.{file["measurement"]}', "value": measurement_df})
             # Print message about what is being merged
             print(f'\t{location["Name"]}', end='')
             # Sort all rows in location_df by Date
             try:
-                location_df.sort_values("Date")
+                sort_cols = ["Date"]
+                # Sort Time column if separate_time arg was passed
+                if args.separate_time:
+                    sort_cols.append("Time")
+                location_df.sort_values(sort_cols)
                 print() # \n
             except:
                 if location_df.empty:
                     # DataFrame is empty
                     print(f' \x1B[3m(No data for this location)\x1B[0m')
-            # Concatenate basin_df and location_df
-            basin_df = pd.concat([basin_df, location_df])
-        # Concatenate output_df and basin_df
-        datasets_df = pd.concat([datasets_df, basin_df])
+            if split_level in ["none", "basin"]:
+                # Concatenate basin_df and location_df
+                basin_df = pd.concat([basin_df, location_df])
+            elif split_level == "location":
+                datasets.append({"name": location["Site ID"], "value": location_df})
+        if split_level == "none":
+            # Concatenate output_df and basin_df
+            datasets_df = pd.concat([datasets_df, basin_df])
+        elif split_level == "basin":
+            datasets.append({"name": basin["basin_name"], "value": basin_df})
+    if split_level == "none":
+        # Append datasets_df to datasets output
+        datasets.append({"name": "datasets", "value": datasets_df})
     # Return output dfs
-    return datasets_df, metadata_df
+    return datasets, metadata_df
 
 
 def merge(datasets):
@@ -237,42 +272,54 @@ def merge(datasets):
 
 #################
 # Output datasets
-# Output to a single CSV file
-def output_csv(merged_df, output_file):
-    print("Writing merged data to a CSV file...")
+# Output to one CSV file
+def output_csv(df, output_file, quiet=False):
+    if quiet == False:
+        print("Writing data to a CSV file...")
 
-    # Write the dataframes to the output file
-    merged_df.to_csv(output_file)
+    # Write the df to the output file
+    df.to_csv(output_file)
     # Print out output file location and confirmation
     print(f'\tWritten to {output_file}')
 
-# Output to formatted JSON files
-def output_json(merged_df, output_dir):
-    print("Writing merged data to JSON files...")
+# Output to multiple CSV files
+def output_csv_files(dfs, output_dir):
+    print("Writing data to CSV files...")
 
-    ########################
-    ## TODO: FILL THIS IN ##
-    ########################
+    # Write each dataframe to the output dir
+    for df in dfs:
+        output_csv(df["value"], f'{output_dir}/{df["name"]}.csv', quiet=True)
+
+# Output to one JSON file
+def output_json(df, output_file):
+    print("Writing merged data to a JSON file...")
+
+    # Write the df to the output file
+    df.to_json(output_file, orient="records")
+    # Print out output file location and confirmation
+    print(f'\tWritten to {output_file}')
 
 ###############
 # Run functions
 # Check if running as a script
 if __name__ == "__main__":
     # Populate tasks argument if no value was given
-    if (args.tasks == None):
+    if args.tasks == None:
         args.tasks = ["download", "merge", "output-csv"]
 
     # Check if argument for task was given before running
-    if ("download" in args.tasks):
-        create(datasets, args.output_dir)
+    if "download" in args.tasks:
+        create(datasets, output_args["output_dir"])
         asyncio.run(download_urls(datasets, headers)) # Run download datasets function asynchronously
     # Merge needs to be run for datasets to be outputted
-    if ("merge" in args.tasks or "output-csv" in args.tasks or "output-json" in args.tasks):
-        datasets, metadata = merge_delwp(delwp_datasets)
+    if "merge" in args.tasks or "output-csv" in args.tasks or "output-json" in args.tasks:
+        datasets, metadata = merge_delwp(delwp_datasets, args.split_level)
         # merged_df = merge(datasets)
 
-        if ("output-csv" in args.tasks):
-            output_csv(datasets, args.output_datasets_file)
-            output_csv(metadata, args.output_metadata_file)
-        if ("output-json" in args.tasks):
-            output_json(datasets, args.output_dir)
+        if "output-csv" in args.tasks:
+            output_csv_files(datasets, f'{output_args["output_dir"]}')
+            output_csv(metadata, f'{output_args["output_dir"]}/{output_args["metadata_prefix"]}.csv')
+        if "output-json" in args.tasks:
+            # Remove Basin and Location columns from metadata_df
+            metadata = metadata.drop(columns=["Basin", "Location"])
+            output_json(metadata, f'{output_args["output_dir"]}/{output_args["metadata_prefix"]}.json')
