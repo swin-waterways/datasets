@@ -18,6 +18,7 @@ parser.add_argument("-dsf", "--datasets-file", default="datasets/datasets.json",
 parser.add_argument("-dwf", "--delwp-datasets-file", default="datasets/delwp_datasets.json", help="JSON file with list of DELWP datasets")
 parser.add_argument("-hf", "--headers-file", default="datasets/headers.json", help="JSON file with list of default URL headers")
 parser.add_argument("-of", "--output-file", default="datasets/output.json", help="JSON file with list of output arguments")
+parser.add_argument("-m", "--metadata-only", action="store_true", help="Only output site metadata")
 parser.add_argument("-s", "--split-level", default="none", choices=["none", "basin", "location", "measurement"], help="Where to split the data into multiple CSV files")
 parser.add_argument("--separate-time", action="store_true", help="Output time as a separate column from date")
 parser.add_argument("-t", "--tasks", action="append", choices=["download", "merge", "output-csv", "output-json"], help="List of tasks to run")
@@ -146,8 +147,10 @@ def merge_delwp(delwp_datasets, split_level):
     for basin in delwp_datasets["basins"]:
         # Print basin name
         print(f'{basin["basin_name"]} Basin')
-        # Create basin DataFrame with a Basin column
-        basin_df = pd.DataFrame()
+
+        if not args.metadata_only:
+            # Create basin DataFrame with a Basin column
+            basin_df = pd.DataFrame()
 
         # Read site metadata file for that basin
         site_metadata = pd.read_csv(f'{basin["dirname"]}/{params["metadata_file"]}')
@@ -163,80 +166,86 @@ def merge_delwp(delwp_datasets, split_level):
             metadata_df = pd.concat([metadata_df, pd.DataFrame({"Site ID": location["Site ID"], "Basin": basin["basin_name"], "Location": location["Name"], "Latitude": location["Latitude"], "Longitude": location["Longitude"]}, index=[index_inc])])
             index_inc += 1
 
-            # Loop through file in location directory
-            for file in params["files"]:
-                filename = f'{basin["dirname"]}/{location_dir}/{location["Site ID"]}.{file["file_ext"]}'
-                # Check if the file exists first
-                if os.path.isfile(filename):
-                    # Read results from CSV (only use first two columns and replace the header names with the ones below)
-                    measurement_df = pd.read_csv(filename, header=0, names=["Date", file["measurement"]], usecols=[0,1])
-                    # Floor date strings to the hour and change Date column to DateTime data type
-                    measurement_df["Date"] = pd.to_datetime(measurement_df["Date"].str.replace(":[0-9]{2}:[0-9]{2}$", '', regex=True))
+            # Only continue if metadata_only arg was not passed
+            if not args.metadata_only:
+                # Loop through file in location directory
+                for file in params["files"]:
+                    filename = f'{basin["dirname"]}/{location_dir}/{location["Site ID"]}.{file["file_ext"]}'
+                    # Check if the file exists first
+                    if os.path.isfile(filename):
+                        # Read results from CSV (only use first two columns and replace the header names with the ones below)
+                        measurement_df = pd.read_csv(filename, header=0, names=["Date", file["measurement"]], usecols=[0,1])
+                        # Floor date strings to the hour and change Date column to DateTime data type
+                        measurement_df["Date"] = pd.to_datetime(measurement_df["Date"].str.replace(":[0-9]{2}:[0-9]{2}$", '', regex=True))
 
-                    group_cols = ["Date"]
-                    # Put time in a separate column if separate_time arg passed
+                        group_cols = ["Date"]
+                        # Put time in a separate column if separate_time arg passed
+                        if args.separate_time:
+                            measurement_df["Time"] = measurement_df["Date"].dt.time
+                            measurement_df["Date"] = measurement_df["Date"].dt.date
+                            group_cols.append("Time")
+
+                        # Do different actions to DF based on measurement
+                        match file["measurement"]:
+                            case "Rainfall":
+                                # Sum all rainfall values for each hour
+                                measurement_df = measurement_df.groupby(group_cols).sum()
+                            case "Flow" | "Height":
+                                # Use mean flow/height value for each hour
+                                measurement_df = measurement_df.groupby(group_cols).mean()
+
+                        # Insert site ID column
+                        if split_level not in ["location", "measurement"]:
+                            measurement_df.insert(0, "Site ID", location["Site ID"])
+                        # Insert flood column
+                        measurement_df.insert(1, "Flood", 0)
+
+                        if split_level in ["none", "basin", "location"]:
+                            # Merge location_df and measurement_df
+                            if location_df.empty:
+                                location_df = measurement_df
+                            else:
+                                # Merge location_df and measurement_df together on common columns
+                                common_cols = ["Site ID", "Date", "Flood"]
+                                # Site ID column will not be included if split level is location
+                                if split_level == "location":
+                                    common_cols.remove("Site ID")
+                                # Add Time column if separate_time arg was passed
+                                if args.separate_time:
+                                    common_cols.append("Time")
+
+                                location_df = pd.merge(location_df, measurement_df, on=common_cols, how="outer")
+                        elif split_level == "measurement":
+                            datasets.append({"name": f'{location["Site ID"]}.{file["measurement"]}', "value": measurement_df})
+                # Print message about what is being merged
+                print(f'\t{location["Name"]}', end='')
+                # Sort all rows in location_df by Date
+                try:
+                    sort_cols = ["Date"]
+                    # Sort Time column if separate_time arg was passed
                     if args.separate_time:
-                        measurement_df["Time"] = measurement_df["Date"].dt.time
-                        measurement_df["Date"] = measurement_df["Date"].dt.date
-                        group_cols.append("Time")
+                        sort_cols.append("Time")
+                    location_df.sort_values(sort_cols)
+                    print() # \n
+                except:
+                    if location_df.empty:
+                        # DataFrame is empty
+                        print(f' \x1B[3m(No data for this location)\x1B[0m')
+                if split_level in ["none", "basin"]:
+                    # Concatenate basin_df and location_df
+                    basin_df = pd.concat([basin_df, location_df])
+                elif split_level == "location":
+                    datasets.append({"name": location["Site ID"], "value": location_df})
 
-                    # Do different actions to DF based on measurement
-                    match file["measurement"]:
-                        case "Rainfall":
-                            # Sum all rainfall values for each hour
-                            measurement_df = measurement_df.groupby(group_cols).sum()
-                        case "Flow" | "Height":
-                            # Use mean flow/height value for each hour
-                            measurement_df = measurement_df.groupby(group_cols).mean()
+        # Only merge datasets if metadata_only arg was not passed
+        if not args.metadata_only:
+            if split_level == "none":
+                # Concatenate output_df and basin_df
+                datasets_df = pd.concat([datasets_df, basin_df])
+            elif split_level == "basin":
+                datasets.append({"name": basin["basin_name"], "value": basin_df})
 
-                    # Insert site ID column
-                    if split_level not in ["location", "measurement"]:
-                        measurement_df.insert(0, "Site ID", location["Site ID"])
-                    # Insert flood column
-                    measurement_df.insert(1, "Flood", 0)
-
-                    if split_level in ["none", "basin", "location"]:
-                        # Merge location_df and measurement_df
-                        if location_df.empty:
-                            location_df = measurement_df
-                        else:
-                            # Merge location_df and measurement_df together on common columns
-                            common_cols = ["Site ID", "Date", "Flood"]
-                            # Site ID column will not be included if split level is location
-                            if split_level == "location":
-                                common_cols.remove("Site ID")
-                            # Add Time column if separate_time arg was passed
-                            if args.separate_time:
-                                common_cols.append("Time")
-
-                            location_df = pd.merge(location_df, measurement_df, on=common_cols, how="outer")
-                    elif split_level == "measurement":
-                        datasets.append({"name": f'{location["Site ID"]}.{file["measurement"]}', "value": measurement_df})
-            # Print message about what is being merged
-            print(f'\t{location["Name"]}', end='')
-            # Sort all rows in location_df by Date
-            try:
-                sort_cols = ["Date"]
-                # Sort Time column if separate_time arg was passed
-                if args.separate_time:
-                    sort_cols.append("Time")
-                location_df.sort_values(sort_cols)
-                print() # \n
-            except:
-                if location_df.empty:
-                    # DataFrame is empty
-                    print(f' \x1B[3m(No data for this location)\x1B[0m')
-            if split_level in ["none", "basin"]:
-                # Concatenate basin_df and location_df
-                basin_df = pd.concat([basin_df, location_df])
-            elif split_level == "location":
-                datasets.append({"name": location["Site ID"], "value": location_df})
-        if split_level == "none":
-            # Concatenate output_df and basin_df
-            datasets_df = pd.concat([datasets_df, basin_df])
-        elif split_level == "basin":
-            datasets.append({"name": basin["basin_name"], "value": basin_df})
-    if split_level == "none":
+    if split_level == "none" and not args.metadata_only:
         # Append datasets_df to datasets output
         datasets.append({"name": "datasets", "value": datasets_df})
     # Return output dfs
@@ -317,7 +326,9 @@ if __name__ == "__main__":
         # merged_df = merge(datasets)
 
         if "output-csv" in args.tasks:
-            output_csv_files(datasets, f'{output_args["output_dir"]}')
+            # Only output datasets if metadata_only arg was not passed
+            if not args.metadata_only:
+                output_csv_files(datasets, f'{output_args["output_dir"]}')
             output_csv(metadata, f'{output_args["output_dir"]}/{output_args["metadata_prefix"]}.csv')
         if "output-json" in args.tasks:
             # Remove Basin and Location columns from metadata_df
