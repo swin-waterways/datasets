@@ -163,7 +163,7 @@ def merge_delwp(delwp_datasets, split_level):
             location_dir = str(location["Site ID"]) + params["location_dir_ext"]
 
             # Add new row to metadata DataFrame
-            metadata_df = pd.concat([metadata_df, pd.DataFrame({"Site ID": location["Site ID"], "Basin": basin["basin_name"], "Location": location["Name"], "Latitude": location["Latitude"], "Longitude": location["Longitude"]}, index=[index_inc])])
+            metadata_df = pd.concat([metadata_df, pd.DataFrame({"Site ID": location["Site ID"], "Basin": basin["basin_name"], "Location": location["Name"], "Latitude": location["Latitude"], "Longitude": location["Longitude"], "Elevation": location["Elevation (m)"]}, index=[index_inc])])
             index_inc += 1
 
             # Only continue if metadata_only arg was not passed
