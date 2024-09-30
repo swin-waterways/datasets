@@ -358,11 +358,12 @@ if __name__ == "__main__":
     if "download" in args.tasks:
         create(datasets, output_args["output_dir"])
         asyncio.run(download_urls(datasets, headers)) # Run download datasets function asynchronously
-    # Merge needs to be run for datasets to be outputted
     if "output-csv" in args.tasks or "output-json" in args.tasks:
+        # Merge needs to be run for datasets to be outputted
         datasets, metadata = merge_delwp(delwp_datasets, args.split_level)
-        # Format Date/Time columns
-        dfs = format_datetime(datasets, args.separate_time)
+        if datasets:
+            # Format Date/Time columns
+            datasets = format_datetime(datasets, args.separate_time)
 
         if "output-csv" in args.tasks:
             # Only output datasets if metadata_only arg was not passed
