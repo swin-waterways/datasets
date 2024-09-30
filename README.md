@@ -28,6 +28,10 @@ The output from the `merge_delwp` function contains the following variables:
 - **Rainfall**: The sum of the total rainfall for each hour at a point.
 - **Flow**/**Height**: The mean (average) flow/height of the river for each hour at a point.
 
+DateTime values can be outputted in one of two values:
+- Default: **%Y-%m-%d %H**
+- If `--separate-time` arg is passed: **%Y-%m-%d** in *Date* column and **%H** in *Time* column
+
 ## Geofabric files (BOM)
 In the `geofabric/` folder, there are shapefiles representing river basins and river catchment areas.  
 These shapefiles contain objects showing the geographic border of these areas, and are categorised as detailed below.

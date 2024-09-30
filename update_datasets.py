@@ -21,7 +21,7 @@ parser.add_argument("-of", "--output-file", default="datasets/output.json", help
 parser.add_argument("-m", "--metadata-only", action="store_true", help="Only output site metadata")
 parser.add_argument("-s", "--split-level", default="none", choices=["none", "basin", "location", "measurement"], help="Where to split the data into multiple CSV files")
 parser.add_argument("--separate-time", action="store_true", help="Output time as a separate column from date")
-parser.add_argument("-t", "--tasks", action="append", choices=["download", "merge", "output-csv", "output-json"], help="List of tasks to run")
+parser.add_argument("-t", "--tasks", action="append", choices=["download", "output-csv", "output-json"], help="List of tasks to run")
 
 # Check if running using an ipython kernel
 try:
@@ -231,6 +231,10 @@ def merge_delwp(delwp_datasets, split_level):
                     if location_df.empty:
                         # DataFrame is empty
                         print(f' \x1B[3m(No data for this location)\x1B[0m')
+                    else:
+                        # Unknown error, exit
+                        print(f': \x1B[1mERROR\x1B[0m')
+                        exit(1)
                 if split_level in ["none", "basin"]:
                     # Concatenate basin_df and location_df
                     basin_df = pd.concat([basin_df, location_df])
@@ -310,22 +314,55 @@ def output_json(data, output_file):
     # Print out output file location and confirmation
     print(f'\tWritten to {output_file}')
 
+##########################
+# Format Date/Time columns in a list of datasets
+def format_datetime(dfs, separate_time):
+    # Remove minutes and seconds from time
+    if not separate_time:
+        # Update Date column if separate_time arg was not passed
+        print("Formatting Dates as '%Y-%m-%d %H'...")
+        for df in dfs:
+            print(f'\t{df["name"]}')
+            index = pd.Index([i.strftime("%Y-%m-%d %H") for i in df["value"].index.tolist()], name="Date")
+            df["value"].set_index(index, inplace=True)
+    else:
+        # Update Time column if separate_time arg was passed
+        print("Formatting Dates as '%Y-%m-%d' and Times as '%H'...")
+        for df in dfs:
+            print(f'\t{df["name"]}', end='')
+            try:
+                # These will fail if there is no data for this location
+                date_index = df["value"].index.get_level_values("Date") # Extract Date column from index
+                time_index = pd.Index([i.strftime("%H") for i in df["value"].index.get_level_values("Time").tolist()], name="Time") # Perform operation on Time column
+                df["value"].set_index([date_index, time_index], inplace=True) # Create MultiIndex from Date and Time columns
+                print() # \n
+            except:
+                if df["value"].empty:
+                    # DataFrame is empty
+                    print(f' \x1B[3m(No data for this location)\x1B[0m')
+                else:
+                    # Unknown error, exit
+                    print(f': \x1B[1mERROR\x1B[0m')
+                    exit(1)
+    return dfs
+
 ###############
 # Run functions
 # Check if running as a script
 if __name__ == "__main__":
     # Populate tasks argument if no value was given
     if args.tasks == None:
-        args.tasks = ["download", "merge", "output-csv"]
+        args.tasks = ["download", "output-csv"]
 
     # Check if argument for task was given before running
     if "download" in args.tasks:
         create(datasets, output_args["output_dir"])
         asyncio.run(download_urls(datasets, headers)) # Run download datasets function asynchronously
     # Merge needs to be run for datasets to be outputted
-    if "merge" in args.tasks or "output-csv" in args.tasks or "output-json" in args.tasks:
+    if "output-csv" in args.tasks or "output-json" in args.tasks:
         datasets, metadata = merge_delwp(delwp_datasets, args.split_level)
-        # merged_df = merge(datasets)
+        # Format Date/Time columns
+        dfs = format_datetime(datasets, args.separate_time)
 
         if "output-csv" in args.tasks:
             # Only output datasets if metadata_only arg was not passed
