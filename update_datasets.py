@@ -20,7 +20,6 @@ parser.add_argument("-hf", "--headers-file", default="datasets/headers.json", he
 parser.add_argument("-of", "--output-file", default="datasets/output.json", help="JSON file with list of output arguments")
 parser.add_argument("-m", "--metadata-only", action="store_true", help="Only output site metadata")
 parser.add_argument("-s", "--split-level", default="none", choices=["none", "basin", "location", "measurement"], help="Where to split the data into multiple CSV files")
-parser.add_argument("--separate-time", action="store_true", help="Output time as a separate column from date")
 parser.add_argument("-t", "--tasks", action="append", choices=["download", "output-csv", "output-json"], help="List of tasks to run")
 
 # Check if running using an ipython kernel
@@ -178,14 +177,12 @@ def merge_delwp(delwp_datasets, split_level):
                         # Floor date strings to the hour and change Date column to DateTime data type
                         measurement_df["Date"] = pd.to_datetime(measurement_df["Date"].str.replace(":[0-9]{2}:[0-9]{2}$", '', regex=True))
 
-                        group_cols = ["Date"]
-                        # Put time in a separate column if separate_time arg passed
-                        if args.separate_time:
-                            measurement_df["Time"] = measurement_df["Date"].dt.time
-                            measurement_df["Date"] = measurement_df["Date"].dt.date
-                            group_cols.append("Time")
+                        # Put time in a separate column
+                        measurement_df["Time"] = measurement_df["Date"].dt.time
+                        measurement_df["Date"] = measurement_df["Date"].dt.date
 
                         # Do different actions to DF based on measurement
+                        group_cols = ["Date", "Time"]
                         match file["measurement"]:
                             case "Rainfall":
                                 # Sum all rainfall values for each hour
@@ -206,26 +203,19 @@ def merge_delwp(delwp_datasets, split_level):
                                 location_df = measurement_df
                             else:
                                 # Merge location_df and measurement_df together on common columns
-                                common_cols = ["Site ID", "Date", "Flood"]
+                                common_cols = ["Site ID", "Date", "Time", "Flood"]
                                 # Site ID column will not be included if split level is location
                                 if split_level == "location":
                                     common_cols.remove("Site ID")
-                                # Add Time column if separate_time arg was passed
-                                if args.separate_time:
-                                    common_cols.append("Time")
 
                                 location_df = pd.merge(location_df, measurement_df, on=common_cols, how="outer")
                         elif split_level == "measurement":
                             datasets.append({"name": f'{location["Site ID"]}.{file["measurement"]}', "value": measurement_df})
                 # Print message about what is being merged
                 print(f'\t{location["Name"]}', end='')
-                # Sort all rows in location_df by Date
+                # Sort all rows in location_df by Date and Time
                 try:
-                    sort_cols = ["Date"]
-                    # Sort Time column if separate_time arg was passed
-                    if args.separate_time:
-                        sort_cols.append("Time")
-                    location_df.sort_values(sort_cols)
+                    location_df.sort_values(["Date", "Time"])
                     print() # \n
                 except:
                     if location_df.empty:
@@ -315,35 +305,26 @@ def output_json(data, output_file):
     print(f'\tWritten to {output_file}')
 
 ##########################
-# Format Date/Time columns in a list of datasets
-def format_datetime(dfs, separate_time):
-    # Remove minutes and seconds from time
-    if not separate_time:
-        # Update Date column if separate_time arg was not passed
-        print("Formatting Dates as '%Y-%m-%d %H'...")
-        for df in dfs:
-            print(f'\t{df["name"]}')
-            index = pd.Index([i.strftime("%Y-%m-%d %H") for i in df["value"].index.tolist()], name="Date")
-            df["value"].set_index(index, inplace=True)
-    else:
-        # Update Time column if separate_time arg was passed
-        print("Formatting Dates as '%Y-%m-%d' and Times as '%H'...")
-        for df in dfs:
-            print(f'\t{df["name"]}', end='')
-            try:
-                # These will fail if there is no data for this location
-                date_index = df["value"].index.get_level_values("Date") # Extract Date column from index
-                time_index = pd.Index([i.strftime("%H") for i in df["value"].index.get_level_values("Time").tolist()], name="Time") # Perform operation on Time column
-                df["value"].set_index([date_index, time_index], inplace=True) # Create MultiIndex from Date and Time columns
-                print() # \n
-            except:
-                if df["value"].empty:
-                    # DataFrame is empty
-                    print(f' \x1B[3m(No data for this location)\x1B[0m')
-                else:
-                    # Unknown error, exit
-                    print(f': \x1B[1mERROR\x1B[0m')
-                    exit(1)
+# Format Time column in a list of datasets
+def format_time(dfs):
+    # Remove minutes and seconds from Time column
+    print("Formatting Times as '%H'...")
+    for df in dfs:
+        print(f'\t{df["name"]}', end='')
+        try:
+            # These will fail if there is no data for this location
+            date_index = df["value"].index.get_level_values("Date") # Extract Date column from index
+            time_index = pd.Index([i.strftime("%H") for i in df["value"].index.get_level_values("Time").tolist()], name="Time") # Perform operation on Time column
+            df["value"].set_index([date_index, time_index], inplace=True) # Create MultiIndex from Date and Time columns
+            print() # \n
+        except:
+            if df["value"].empty:
+                # DataFrame is empty
+                print(f' \x1B[3m(No data for this location)\x1B[0m')
+            else:
+                # Unknown error, exit
+                print(f': \x1B[1mERROR\x1B[0m')
+                exit(1)
     return dfs
 
 ###############
@@ -362,8 +343,8 @@ if __name__ == "__main__":
         # Merge needs to be run for datasets to be outputted
         datasets, metadata = merge_delwp(delwp_datasets, args.split_level)
         if datasets:
-            # Format Date/Time columns
-            datasets = format_datetime(datasets, args.separate_time)
+            # Format Time column
+            datasets = format_time(datasets)
 
         if "output-csv" in args.tasks:
             # Only output datasets if metadata_only arg was not passed
