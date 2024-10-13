@@ -174,28 +174,32 @@ def merge_delwp(delwp_datasets, split_level):
                     if os.path.isfile(filename):
                         # Read results from CSV (only use first two columns and replace the header names with the ones below)
                         measurement_df = pd.read_csv(filename, header=0, names=["Date", file["measurement"]], usecols=[0,1])
-                        # Floor date strings to the hour and change Date column to DateTime data type
-                        measurement_df["Date"] = pd.to_datetime(measurement_df["Date"].str.replace(":[0-9]{2}:[0-9]{2}$", '', regex=True))
-
-                        # Put time in a separate column
-                        measurement_df["Time"] = measurement_df["Date"].dt.time
-                        measurement_df["Date"] = measurement_df["Date"].dt.date
+                        # Change index to Date
+                        measurement_df["Date"] = pd.to_datetime(measurement_df["Date"]).dt.floor('h')
+                        measurement_df.set_index("Date", inplace=True)
 
                         # Do different actions to DF based on measurement
-                        group_cols = ["Date", "Time"]
                         match file["measurement"]:
                             case "Rainfall":
                                 # Sum all rainfall values for each hour
-                                measurement_df = measurement_df.groupby(group_cols).sum()
+                                measurement_df = measurement_df.resample("1h").sum()
                             case "Flow" | "Height":
                                 # Use mean flow/height value for each hour
-                                measurement_df = measurement_df.groupby(group_cols).mean()
+                                measurement_df = measurement_df.resample("1h").mean()
 
                         # Insert site ID column
                         if split_level not in ["location", "measurement"]:
                             measurement_df.insert(0, "Site ID", location["Site ID"])
                         # Insert flood column
                         measurement_df.insert(1, "Flood", 0)
+
+                        # Reset index
+                        measurement_df.reset_index(inplace=True)
+                        # Put time in a separate column
+                        measurement_df["Time"] = measurement_df["Date"].dt.time
+                        measurement_df["Date"] = measurement_df["Date"].dt.date
+                        # Create MultiIndex from Date and Time columns
+                        measurement_df.set_index(["Date", "Time"], inplace=True)
 
                         if split_level in ["none", "basin", "location"]:
                             # Merge location_df and measurement_df
@@ -217,13 +221,13 @@ def merge_delwp(delwp_datasets, split_level):
                 try:
                     location_df.sort_values(["Date", "Time"])
                     print() # \n
-                except:
+                except Exception as e:
                     if location_df.empty:
                         # DataFrame is empty
                         print(f' \x1B[3m(No data for this location)\x1B[0m')
                     else:
                         # Unknown error, exit
-                        print(f': \x1B[1mERROR\x1B[0m')
+                        print(f': \x1B[1mERROR\x1B[0m:', e)
                         exit(1)
                 if split_level in ["none", "basin"]:
                     # Concatenate basin_df and location_df
@@ -317,13 +321,13 @@ def format_time(dfs):
             time_index = pd.Index([i.strftime("%H") for i in df["value"].index.get_level_values("Time").tolist()], name="Time") # Perform operation on Time column
             df["value"].set_index([date_index, time_index], inplace=True) # Create MultiIndex from Date and Time columns
             print() # \n
-        except:
+        except Exception as e:
             if df["value"].empty:
                 # DataFrame is empty
                 print(f' \x1B[3m(No data for this location)\x1B[0m')
             else:
                 # Unknown error, exit
-                print(f': \x1B[1mERROR\x1B[0m')
+                print(f': \x1B[1mERROR\x1B[0m:', e)
                 exit(1)
     return dfs
 
