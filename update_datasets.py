@@ -17,6 +17,7 @@ parser.add_argument("-bf", "--bom-config-file", default="datasets/bom.json", hel
 parser.add_argument("-dsf", "--datasets-file", default="datasets/datasets.json", help="JSON file with list of datasets")
 parser.add_argument("-dwf", "--delwp-datasets-file", default="datasets/delwp_datasets.json", help="JSON file with list of DELWP datasets")
 parser.add_argument("-hf", "--headers-file", default="datasets/headers.json", help="JSON file with list of default URL headers")
+parser.add_argument("-i", "--interpolate", action="store_true", help="Interpolate missing data")
 parser.add_argument("-of", "--output-file", default="datasets/output.json", help="JSON file with list of output arguments")
 parser.add_argument("-m", "--metadata-only", action="store_true", help="Only output site metadata")
 parser.add_argument("-s", "--split-level", default="none", choices=["none", "basin", "location", "measurement"], help="Where to split the data into multiple CSV files")
@@ -132,6 +133,13 @@ async def download_urls(datasets, headers):
 ################
 # Merge datasets
 #
+# Separate Time column from Date column
+def separate_time(df):
+    df["Time"] = df["Date"].dt.time
+    df["Date"] = df["Date"].dt.date
+    return df
+
+
 # Merge DELWP datasets
 def merge_delwp(delwp_datasets, split_level):
     print("Merging DELWP datasets...")
@@ -176,16 +184,27 @@ def merge_delwp(delwp_datasets, split_level):
                         measurement_df = pd.read_csv(filename, header=0, names=["Date", file["measurement"]], usecols=[0,1])
                         # Change index to Date
                         measurement_df["Date"] = pd.to_datetime(measurement_df["Date"]).dt.floor('h')
-                        measurement_df.set_index("Date", inplace=True)
+
+                        if args.interpolate:
+                            measurement_df.set_index("Date", inplace=True)
+                        else:
+                            measurement_df = separate_time(measurement_df)
 
                         # Do different actions to DF based on measurement
+                        group_cols = ["Date", "Time"]
                         match file["measurement"]:
                             case "Rainfall":
                                 # Sum all rainfall values for each hour
-                                measurement_df = measurement_df.resample("1h").sum()
+                                if args.interpolate:
+                                    measurement_df = measurement_df.resample("1h").sum()
+                                else:
+                                    measurement_df = measurement_df.groupby(group_cols).sum()
                             case "Flow" | "Height":
                                 # Use mean flow/height value for each hour
-                                measurement_df = measurement_df.resample("1h").mean()
+                                if args.interpolate:
+                                    measurement_df = measurement_df.resample("1h").mean()
+                                else:
+                                    measurement_df = measurement_df.groupby(group_cols).mean()
 
                         # Insert site ID column
                         if split_level not in ["location", "measurement"]:
@@ -193,13 +212,13 @@ def merge_delwp(delwp_datasets, split_level):
                         # Insert flood column
                         measurement_df.insert(1, "Flood", 0)
 
-                        # Reset index
-                        measurement_df.reset_index(inplace=True)
-                        # Put time in a separate column
-                        measurement_df["Time"] = measurement_df["Date"].dt.time
-                        measurement_df["Date"] = measurement_df["Date"].dt.date
-                        # Create MultiIndex from Date and Time columns
-                        measurement_df.set_index(["Date", "Time"], inplace=True)
+                        if args.interpolate:
+                            # Reset index
+                            measurement_df.reset_index(inplace=True)
+                            # Separate Time column from Date column
+                            measurement_df = separate_time(measurement_df)
+                            # Create MultiIndex from Date and Time columns
+                            measurement_df.set_index(["Date", "Time"], inplace=True)
 
                         if split_level in ["none", "basin", "location"]:
                             # Merge location_df and measurement_df
