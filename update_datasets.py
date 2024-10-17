@@ -141,7 +141,7 @@ def separate_time(df):
 
 
 # Merge DELWP datasets
-def merge_delwp(delwp_datasets, split_level):
+def merge_delwp(delwp_datasets, interpolate, metadata_only, split_level):
     print("Merging DELWP datasets...")
     # Read parameters from DELWP datasets file
     params = delwp_datasets["parameters"]
@@ -155,7 +155,7 @@ def merge_delwp(delwp_datasets, split_level):
         # Print basin name
         print(f'{basin["basin_name"]} Basin')
 
-        if not args.metadata_only:
+        if not metadata_only:
             # Create basin DataFrame with a Basin column
             basin_df = pd.DataFrame()
 
@@ -174,7 +174,7 @@ def merge_delwp(delwp_datasets, split_level):
             index_inc += 1
 
             # Only continue if metadata_only arg was not passed
-            if not args.metadata_only:
+            if not metadata_only:
                 # Loop through file in location directory
                 for file in params["files"]:
                     filename = f'{basin["dirname"]}/{location_dir}/{location["Site ID"]}.{file["file_ext"]}'
@@ -185,7 +185,7 @@ def merge_delwp(delwp_datasets, split_level):
                         # Change index to Date
                         measurement_df["Date"] = pd.to_datetime(measurement_df["Date"]).dt.floor('h')
 
-                        if args.interpolate:
+                        if interpolate:
                             measurement_df.set_index("Date", inplace=True)
                         else:
                             measurement_df = separate_time(measurement_df)
@@ -195,13 +195,13 @@ def merge_delwp(delwp_datasets, split_level):
                         match file["measurement"]:
                             case "Rainfall":
                                 # Sum all rainfall values for each hour
-                                if args.interpolate:
+                                if interpolate:
                                     measurement_df = measurement_df.resample("1h").sum()
                                 else:
                                     measurement_df = measurement_df.groupby(group_cols).sum()
                             case "Flow" | "Height":
                                 # Use mean flow/height value for each hour
-                                if args.interpolate:
+                                if interpolate:
                                     measurement_df = measurement_df.resample("1h").mean()
                                 else:
                                     measurement_df = measurement_df.groupby(group_cols).mean()
@@ -212,7 +212,7 @@ def merge_delwp(delwp_datasets, split_level):
                         # Insert flood column
                         measurement_df.insert(1, "Flood", 0)
 
-                        if args.interpolate:
+                        if interpolate:
                             # Reset index
                             measurement_df.reset_index(inplace=True)
                             # Separate Time column from Date column
@@ -255,14 +255,14 @@ def merge_delwp(delwp_datasets, split_level):
                     datasets.append({"name": location["Site ID"], "value": location_df})
 
         # Only merge datasets if metadata_only arg was not passed
-        if not args.metadata_only:
+        if not metadata_only:
             if split_level == "none":
                 # Concatenate output_df and basin_df
                 datasets_df = pd.concat([datasets_df, basin_df])
             elif split_level == "basin":
                 datasets.append({"name": basin["basin_name"], "value": basin_df})
 
-    if split_level == "none" and not args.metadata_only:
+    if split_level == "none" and not metadata_only:
         # Append datasets_df to datasets output
         datasets.append({"name": "datasets", "value": datasets_df})
     metadata_df.set_index("Basin", inplace=True)
@@ -364,7 +364,7 @@ if __name__ == "__main__":
         asyncio.run(download_urls(datasets, headers)) # Run download datasets function asynchronously
     if "output-csv" in args.tasks or "output-json" in args.tasks:
         # Merge needs to be run for datasets to be outputted
-        datasets, metadata = merge_delwp(delwp_datasets, args.split_level)
+        datasets, metadata = merge_delwp(delwp_datasets, args.interpolate, args.metadata_only, args.split_level)
         if datasets:
             # Format Time column
             datasets = format_time(datasets)
