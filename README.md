@@ -8,11 +8,9 @@ It reads from a list of datasets (by default `datasets.json`), and a list of def
 It can also merge datasets and output the merged datasets to a CSV file (by default `datasets.csv`).
 
 ### Requirements
-- Python 3.10 - 3.12
+- Python 3.10 or later
 - aiohttp library (`pip install aiohttp`)
-- matplotlib library (`pip install matplotlib`)
 - pandas library (`pip install pandas`)
-- pybomwater library (`pip install git+https://github.com/csiro-hydroinformatics/pybomwater.git`)
 
 ## Folder structure
 The current folder structure for datasets is as follows:
@@ -28,9 +26,7 @@ The output from the `merge_delwp` function contains the following variables:
 - **Rainfall**: The sum of the total rainfall for each hour at a point.
 - **Flow**/**Height**: The mean (average) flow/height of the river for each hour at a point.
 
-DateTime values can be outputted in one of two values:
-- Default: **%Y-%m-%d %H**
-- If `--separate-time` arg is passed: **%Y-%m-%d** in *Date* column and **%H** in *Time* column
+Date and Time values are outputted with the format **%Y-%m-%d** in the *Date* column and **%H** in the *Time* column
 
 ## Geofabric files (BOM)
 In the `geofabric/` folder, there are shapefiles representing river basins and river catchment areas.  

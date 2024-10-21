@@ -141,7 +141,7 @@ def separate_time(df):
 
 
 # Merge DELWP datasets
-def merge_delwp(delwp_datasets, interpolate, metadata_only, split_level):
+def merge_delwp(delwp_datasets, interpolate=False, metadata_only=False, split_level='none'):
     print("Merging DELWP datasets...")
     # Read parameters from DELWP datasets file
     params = delwp_datasets["parameters"]
@@ -364,7 +364,7 @@ if __name__ == "__main__":
         asyncio.run(download_urls(datasets, headers)) # Run download datasets function asynchronously
     if "output-csv" in args.tasks or "output-json" in args.tasks:
         # Merge needs to be run for datasets to be outputted
-        datasets, metadata = merge_delwp(delwp_datasets, args.interpolate, args.metadata_only, args.split_level)
+        datasets, metadata = merge_delwp(delwp_datasets, args.split_level, args.interpolate, args.metadata_only)
         if datasets:
             # Format Time column
             datasets = format_time(datasets)
