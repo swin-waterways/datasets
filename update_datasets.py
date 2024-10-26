@@ -185,13 +185,14 @@ def merge_delwp(delwp_datasets, interpolate=False, metadata_only=False, split_le
                         # Change index to Date
                         measurement_df["Date"] = pd.to_datetime(measurement_df["Date"]).dt.floor('h')
 
+                        group_cols = ["Date"]
                         if interpolate:
                             measurement_df.set_index("Date", inplace=True)
                         else:
                             measurement_df = separate_time(measurement_df)
+                            group_cols.append("Time")
 
                         # Do different actions to DF based on measurement
-                        group_cols = ["Date", "Time"]
                         match file["measurement"]:
                             case "Rainfall":
                                 # Sum all rainfall values for each hour
@@ -201,10 +202,9 @@ def merge_delwp(delwp_datasets, interpolate=False, metadata_only=False, split_le
                                     measurement_df = measurement_df.groupby(group_cols).sum()
                             case "Flow" | "Height":
                                 # Use mean flow/height value for each hour
+                                measurement_df = measurement_df.groupby(group_cols).mean()
                                 if interpolate:
-                                    measurement_df = measurement_df.resample("1h").mean()
-                                else:
-                                    measurement_df = measurement_df.groupby(group_cols).mean()
+                                    measurement_df = measurement_df.resample("1h").interpolate()
 
                         # Insert site ID column
                         if split_level not in ["location", "measurement"]:
@@ -213,6 +213,10 @@ def merge_delwp(delwp_datasets, interpolate=False, metadata_only=False, split_le
                         measurement_df.insert(1, "Flood", 0)
 
                         if interpolate:
+                            if measurement_df.empty:
+                                # Skip finishing processing this dataset
+                                continue
+
                             # Reset index
                             measurement_df.reset_index(inplace=True)
                             # Separate Time column from Date column
@@ -364,7 +368,7 @@ if __name__ == "__main__":
         asyncio.run(download_urls(datasets, headers)) # Run download datasets function asynchronously
     if "output-csv" in args.tasks or "output-json" in args.tasks:
         # Merge needs to be run for datasets to be outputted
-        datasets, metadata = merge_delwp(delwp_datasets, args.split_level, args.interpolate, args.metadata_only)
+        datasets, metadata = merge_delwp(delwp_datasets, args.interpolate, args.metadata_only, args.split_level)
         if datasets:
             # Format Time column
             datasets = format_time(datasets)
