@@ -178,4 +178,5 @@ Date and Time values are outputted with the format **`%Y-%m-%d`** in the *`Date`
 - flask library (`pip install flask`)
 - folium library (`pip install folium`)
 - matplotlib library (`pip install matplotlib`)
+- numpy library (`pip install numpy`)
 - pandas library (`pip install pandas`)
